@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "933684372615",
+    "project_id": "eerste-stapjes-id",
+    "storage_bucket": "eerste-stapjes-id.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:933684372615:android:aa0746b245efe5feb78422",
+        "android_client_info": {
+          "package_name": "com.example.myapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "933684372615-10boe387nq7p4ebj5mvv2iknai09konj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAoeCJ_kiMz1woYXEp91KJ7m6kDqHs3_BM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "933684372615-10boe387nq7p4ebj5mvv2iknai09konj.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:933684372615:android:f8ea877c616e80c1b78422",
+        "android_client_info": {
+          "package_name": "dev.mijneerstestapjes.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "933684372615-10boe387nq7p4ebj5mvv2iknai09konj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAoeCJ_kiMz1woYXEp91KJ7m6kDqHs3_BM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "933684372615-10boe387nq7p4ebj5mvv2iknai09konj.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
