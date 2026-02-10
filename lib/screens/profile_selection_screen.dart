@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/profile_provider.dart';
@@ -9,77 +10,120 @@ import 'calendar_screen.dart';
 class ProfileSelectionScreen extends StatelessWidget {
   const ProfileSelectionScreen({super.key});
 
+  void _showFollowDialog(BuildContext context) {
+    final codeController = TextEditingController();
+    final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Profiel Volgen'),
+        content: TextField(
+          controller: codeController,
+          decoration: const InputDecoration(
+            labelText: 'Voer de unieke code in',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuleren'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final success = await profileProvider.followProfile(codeController.text);
+              if (context.mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(success
+                        ? 'Je volgt nu dit profiel!'
+                        : 'Ongeldige code of je volgt dit profiel al.')));
+              }
+            },
+            child: const Text('Volgen'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authService = AuthService();
+    final currentUser = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Background Image
-          Image.asset(
-            'assets/images/background.jpg',
-            fit: BoxFit.cover,
-          ),
-          // Black Overlay
-          Container(
-            color: Colors.black.withAlpha(128),
-          ),
-          // Main Content
+          Image.asset('assets/images/background.jpg', fit: BoxFit.cover),
+          Container(color: Colors.black.withAlpha(128)),
           SafeArea(
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Spacer(flex: 2),
-                const Text(
-                  'Eerste stapjes',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Pacifico',
-                    fontSize: 48,
-                    color: Colors.white,
-                    shadows: [
-                      Shadow(
-                        blurRadius: 8.0,
-                        color: Colors.black54,
-                        offset: Offset(2.0, 2.0),
-                      ),
-                    ],
+                const Padding(
+                  padding: EdgeInsets.only(top: 40.0, bottom: 20.0),
+                  child: Text(
+                    'Eerste stapjes',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'Pacifico',
+                      fontSize: 48,
+                      color: Colors.white,
+                      shadows: [
+                        Shadow(blurRadius: 8.0, color: Colors.black54, offset: Offset(2.0, 2.0)),
+                      ],
+                    ),
                   ),
                 ),
-                const Spacer(flex: 1),
-                Consumer<ProfileProvider>(
-                  builder: (context, provider, child) {
-                    if (provider.profiles.isEmpty) {
-                      return const Center(
-                        child: Text(
-                          'Maak een profiel aan om te beginnen.',
-                          style: TextStyle(color: Colors.white70, fontSize: 16),
+                Expanded(
+                  child: Consumer<ProfileProvider>(
+                    builder: (context, provider, child) {
+                      if (provider.profiles.isEmpty) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 20.0),
+                            child: Text(
+                              'Maak of volg een profiel om te beginnen.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.white70, fontSize: 16),
+                            ),
+                          ),
+                        );
+                      }
+
+                      final ownProfiles = provider.profiles.where((p) => p.ownerId == currentUser?.uid).toList();
+                      final followedProfiles = provider.profiles.where((p) => p.ownerId != currentUser?.uid).toList();
+
+                      return SingleChildScrollView(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: Column(
+                            children: [
+                              if (ownProfiles.isNotEmpty)
+                                _buildProfileSection('Mijn Profielen', ownProfiles, context, true),
+                              if (followedProfiles.isNotEmpty)
+                                _buildProfileSection('Gevolgde Profielen', followedProfiles, context, false),
+                            ],
+                          ),
                         ),
                       );
-                    }
-                    return SizedBox(
-                      height: 200, // Adjust height to fit CircleAvatar and text
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        shrinkWrap: true,
-                        itemCount: provider.profiles.length,
-                        itemBuilder: (context, index) {
-                          final profile = provider.profiles[index];
-                          return _buildProfileItem(context, profile);
-                        },
-                      ),
-                    );
-                  },
+                    },
+                  ),
                 ),
-                const SizedBox(height: 30),
-                _buildAddProfileButton(context),
-                const Spacer(flex: 2),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 30.0, top: 20.0),
+                  child: Column(
+                    children: [
+                       _buildAddProfileButton(context),
+                       const SizedBox(height: 10),
+                       _buildFollowProfileButton(context),
+                    ],
+                  ),
+                )
               ],
             ),
           ),
-          // Logout Button
           Positioned(
             top: 40,
             right: 10,
@@ -96,24 +140,38 @@ class ProfileSelectionScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileItem(BuildContext context, Profile profile) {
+  Widget _buildProfileSection(String title, List<Profile> profiles, BuildContext context, bool editable) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center, // Center title
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16.0),
+          child: Text(title, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+        ),
+        Wrap(
+          spacing: 16.0, // Horizontal space between items
+          runSpacing: 16.0, // Vertical space between lines
+          alignment: WrapAlignment.center,
+          children: profiles.map((profile) => _buildProfileItem(context, profile, editable)).toList(),
+        ),
+        const SizedBox(height: 20), // Add space after a section
+      ],
+    );
+  }
+
+  Widget _buildProfileItem(BuildContext context, Profile profile, bool editable) {
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => CalendarScreen(profile: profile),
-          ),
-        );
+        Navigator.push(context, MaterialPageRoute(builder: (context) => CalendarScreen(profile: profile)));
       },
-      child: Container(
+      child: SizedBox(
         width: 150, // Fixed width for each item
-        margin: const EdgeInsets.symmetric(horizontal: 8.0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Stack(
               alignment: Alignment.bottomRight,
+              clipBehavior: Clip.none, // Allow edit button to overlap
               children: [
                 CircleAvatar(
                   radius: 60,
@@ -125,22 +183,21 @@ class ProfileSelectionScreen extends StatelessWidget {
                       ? const Icon(Icons.person, size: 80, color: Colors.grey)
                       : null,
                 ),
-                // Edit button as shown in the example image
-                GestureDetector(
-                  onTap: () {
-                    // Navigate to CreateProfileScreen to edit, assuming it handles an optional profile parameter
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => CreateProfileScreen(profile: profile)));
-                  },
-                  child: const CircleAvatar(
-                    radius: 18,
-                    backgroundColor: Colors.white,
-                    child: Icon(
-                      Icons.edit,
-                      size: 20,
-                      color: Colors.black87,
+                if (editable)
+                  Positioned(
+                    right: -5, // Adjust position
+                    bottom: -5, // Adjust position
+                    child: GestureDetector(
+                      onTap: () {
+                         Navigator.push(context, MaterialPageRoute(builder: (context) => CreateProfileScreen(profile: profile)));
+                      },
+                      child: const CircleAvatar(
+                        radius: 20,
+                        backgroundColor: Colors.white,
+                        child: Icon(Icons.edit, size: 22, color: Colors.black87),
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -150,17 +207,10 @@ class ProfileSelectionScreen extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                shadows: [
-                   Shadow(
-                    blurRadius: 4.0,
-                    color: Colors.black87,
-                    offset: Offset(1.0, 1.0),
-                  ),
-                ]
-              ),
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  shadows: [Shadow(blurRadius: 4.0, color: Colors.black87, offset: Offset(1.0, 1.0))]),
             ),
           ],
         ),
@@ -171,13 +221,18 @@ class ProfileSelectionScreen extends StatelessWidget {
   Widget _buildAddProfileButton(BuildContext context) {
     return TextButton.icon(
       icon: const Icon(Icons.add_circle_outline, color: Colors.white70),
-      label: const Text(
-        'Nog een profiel aanmaken',
-        style: TextStyle(color: Colors.white70, fontSize: 16),
-      ),
+      label: const Text('Nieuw profiel aanmaken', style: TextStyle(color: Colors.white70, fontSize: 16)),
       onPressed: () {
         Navigator.push(context, MaterialPageRoute(builder: (context) => const CreateProfileScreen()));
       },
+    );
+  }
+
+  Widget _buildFollowProfileButton(BuildContext context) {
+    return TextButton.icon(
+      icon: const Icon(Icons.group_add_outlined, color: Colors.white70),
+      label: const Text('Een profiel volgen', style: TextStyle(color: Colors.white70, fontSize: 16)),
+      onPressed: () => _showFollowDialog(context),
     );
   }
 }

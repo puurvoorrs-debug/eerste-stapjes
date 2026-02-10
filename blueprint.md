@@ -22,49 +22,45 @@ Eerste Stapjes is een mobiele applicatie gebouwd met Flutter, ontworpen om de gr
 
 1.  **Gebruikersauthenticatie:**
     - Veilige login via Google Sign-In.
-    - De app-status reageert op de login- en logout-status van de gebruiker.
 
-2.  **Profielbeheer:**
-    - Gebruikers kunnen meerdere profielen aanmaken, bekijken en bijwerken.
-    - Elk profiel bevat:
-      - Een unieke ID
-      - Naam
-      - Geboortedatum (selecteerbaar via een date picker)
-      - Een profielfoto (te kiezen uit de galerij van het toestel).
+2.  **Profielbeheer & Rollen:**
+    - **Ouder/Verzorger (Eigenaar):** Kan profielen aanmaken, bewerken, verwijderen en delen via een unieke code.
+    - **Volger:** Kan een profiel volgen met de unieke code en heeft alleen-lezen toegang.
+    - Profielen worden opgeslagen in een centrale `profiles` collectie om delen mogelijk te maken.
 
 3.  **Dagelijkse Momenten (Entries):**
-    - Gebruikers kunnen een foto toevoegen voor een specifieke datum binnen een profiel.
-    - De app biedt de mogelijkheid om een foto als 'favoriet' te markeren.
+    - Eigenaren kunnen dagelijks een foto toevoegen aan een profiel.
+    - Zowel eigenaren als volgers kunnen foto's als 'favoriet' markeren. Deze favorieten zijn per gebruiker opgeslagen.
 
 ### User Interface (UI) & User Experience (UX)
 
 - **Design Stijl:** Material Design 3.
-- **Thema:**
-  - De app ondersteunt zowel een lichte als een donkere modus (`lightTheme` en `darkTheme`).
-  - De themabestanden zijn gecentraliseerd in `lib/theme.dart`.
+- **Thema:** Ondersteuning voor lichte en donkere modus.
 - **Schermen:**
-  - **`ProfileSelectionScreen`:** Toont een grid-view van alle aangemaakte profielen. Bevat een prominente knop om een nieuw profiel aan te maken.
-  - **`CreateProfileScreen`:** Een formulier voor het aanmaken of bewerken van een profiel. Inclusief een `ImagePicker` voor de profielfoto en een `DatePicker` voor de geboortedatum.
-  - **`CalendarScreen`:** Een kalenderweergave (`table_calendar`) waarin gebruikers kunnen navigeren om de foto's per dag te bekijken.
-- **Componenten & Packages:**
-  - `image_picker`: Voor het selecteren van afbeeldingen uit de galerij.
-  - `table_calendar`: Voor de weergave van de kalender.
-  - `intl`: Voor het formatteren van datums (bijv. in 'nl_NL' formaat).
-  - `provider`: Voor state management.
+  - **`ProfileSelectionScreen`:** Toont een gescheiden weergave van 'Mijn Profielen' en 'Gevolgde Profielen'. Bevat knoppen om een nieuw profiel te maken of een bestaand profiel te volgen.
+  - **`CreateProfileScreen`:** Formulier voor het aanmaken/bewerken van profielen.
+  - **`CalendarScreen`:** Kalenderweergave van de dagelijkse foto's. Eigenaren zien hier een 'Deel' knop om de profielcode te kopiëren.
 
 ### Debugging & Oplossingen
 
-- **Build Fout (`ThemeProvider`):** Een initiële build-fout is opgelost door de `ThemeData` definities te verplaatsen naar een apart `theme.dart` bestand en dit correct te importeren.
-- **Build Fout (Lettertype):** Een fout door een ontbrekend `Pacifico` lettertype is opgelost door de verwijzing naar het custom lettertype tijdelijk uit `pubspec.yaml` te verwijderen om de build te laten slagen.
-- **Runtime Fout (`firebase_storage/object-not-found`):** Een bug bij het uploaden van profielfoto's is opgelost. De code wacht nu correct tot de upload naar Firebase Storage is voltooid alvorens de download-URL op te vragen. Dit loste de race-conditie op.
+- **Diverse Build & Runtime Fouten:** Opgelost tijdens de initiële ontwikkeling.
+- **Data Structuur:** Gemigreerd van een geneste (`users/{uid}/profiles`) naar een centrale (`profiles`) datastructuur om het delen van profielen te faciliteren.
 
 ---
 
 ## Huidig Plan
 
-- **Status:** Bezig met het updaten van het login scherm.
+- **Status:** Bugfixes en Feature Verbetering.
+- **Doel:** De layout van het profielselectiescherm corrigeren en de favorieten-functionaliteit aanpassen.
 - **Acties:**
-    - De titel op het loginscherm aanpassen naar "Eerste stapjes".
-    - De subtekst aanpassen naar "Elke dag een stapje verder.".
-    - Het "voetjes png.png" logo toevoegen.
-    - De "voetjes-animatie-final.html" animatie toevoegen.
+    1.  **Layout Fix (`ProfileSelectionScreen`):**
+        - Het probleem waarbij de profiellijst niet correct gecentreerd is en avatars worden afgesneden, wordt opgelost.
+        - De `ListView` en de bijbehorende widgets worden aangepast om een visueel correcte en gebalanceerde weergave te garanderen.
+
+    2.  **Favorieten per Gebruiker:**
+        - **Datamodel Aanpassen:** Het `DailyEntry` model wordt aangepast. Het veld `isFavorite` (een boolean) wordt vervangen door `favoritedBy` (een lijst van gebruiker-UIDs).
+        - **Provider Aanpassen:** De `toggleFavorite` methode in de `ProfileProvider` wordt bijgewerkt. In plaats van een boolean te wisselen, voegt het nu de UID van de huidige gebruiker toe aan of verwijdert het uit de `favoritedBy` lijst in Firestore.
+        - **UI Aanpassen (`CalendarScreen` & `FavoritesScreen`):**
+            - De logica wordt aangepast om te controleren of de UID van de *huidige* gebruiker in de `favoritedBy` lijst staat.
+            - Dit zorgt ervoor dat de favorieten-status (het ster-icoon) correct wordt weergegeven voor elke individuele gebruiker.
+            - Het `FavoritesScreen` zal alleen de foto's tonen die door de *huidige* gebruiker als favoriet zijn gemarkeerd.

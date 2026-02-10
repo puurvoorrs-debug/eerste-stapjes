@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Import for Clipboard
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -40,11 +41,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   void _listenToAllEntries() {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null || widget.profile.id == null) return;
+    if (widget.profile.id == null) return;
 
     _entriesSubscription = FirebaseFirestore.instance
-        .collection('users').doc(user.uid)
         .collection('profiles').doc(widget.profile.id!)
         .collection('daily_entries')
         .snapshots()
@@ -68,13 +67,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Future<void> _pickImageForSelectedDay() async {
     if (_selectedDay == null || widget.profile.id == null) return;
+    
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser?.uid != widget.profile.ownerId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Alleen de eigenaar kan foto\'s toevoegen.')),
+      );
+      return;
+    }
 
     final provider = Provider.of<ProfileProvider>(context, listen: false);
     final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
 
     if (pickedFile != null) {
       try {
-        await provider.addPhotoToProfile(widget.profile.id!, widget.profile.name, _selectedDay!, File(pickedFile.path));
+        await provider.addPhotoToProfile(widget.profile.id!, _selectedDay!, File(pickedFile.path));
       } catch (e) {
         if(mounted) {
            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Fout bij uploaden: $e")));
@@ -98,6 +105,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final isOwner = currentUser?.uid == widget.profile.ownerId;
 
     return Consumer<ProfileProvider>(
       builder: (context, provider, child) {
@@ -108,6 +117,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
           appBar: AppBar(
             title: Text(profile.name),
             actions: [
+              if (isOwner && profile.shareCode != null)
+                IconButton(
+                  icon: const Icon(Icons.share),
+                  tooltip: 'Deel Profiel',
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: profile.shareCode!));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Deelbare code gekopieerd!')),
+                    );
+                  },
+                ),
               IconButton(
                 icon: const Icon(Icons.star),
                 onPressed: () {
@@ -117,15 +137,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   );
                 },
               ),
-              IconButton(
-                icon: const Icon(Icons.edit_outlined),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => CreateProfileScreen(profile: profile)),
-                  ).then((_) => setState((){}));
-                },
-              ),
+              if (isOwner)
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => CreateProfileScreen(profile: profile)),
+                    ).then((_) => setState((){}));
+                  },
+                ),
               IconButton(
                 icon: Icon(themeProvider.isDarkMode ? Icons.light_mode : Icons.dark_mode),
                 onPressed: () {
@@ -160,18 +181,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     headerStyle: HeaderStyle(
                       titleCentered: true,
                       formatButtonVisible: false,
-                      titleTextStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 18, fontWeight: FontWeight.bold),
-                      leftChevronIcon: Icon(Icons.chevron_left, color: Theme.of(context).colorScheme.onSurface),
-                      rightChevronIcon: Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.onSurface),
-                    ),
-                    daysOfWeekStyle: DaysOfWeekStyle(
-                      weekdayStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(153)),
-                      weekendStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(153)),
                     ),
                     calendarStyle: CalendarStyle(
-                      defaultTextStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-                      weekendTextStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-                      outsideTextStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(102)),
                        todayDecoration: BoxDecoration(
                         color: Theme.of(context).primaryColor.withAlpha(128),
                         shape: BoxShape.circle,
@@ -180,12 +191,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         color: Theme.of(context).primaryColor,
                         shape: BoxShape.circle,
                       ),
-                      selectedTextStyle: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontWeight: FontWeight.bold),
                     ),
                      calendarBuilders: CalendarBuilders(
                       markerBuilder: (context, date, events) {
-                         if (events.isEmpty) return null;
+                         if (events.isEmpty || currentUser == null) return null;
                         final entry = events.first as DailyEntry;
+                        final bool isFavorited = entry.isFavoritedBy(currentUser.uid);
+
                         return Center(
                           child: Stack(
                             alignment: Alignment.center,
@@ -195,7 +207,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                  width: 30,
                                  height: 30,
                               ),
-                              if (entry.isFavorite)
+                              if (isFavorited)
                                 const Positioned(
                                   right: 1,
                                   top: 1,
@@ -213,13 +225,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   _selectedDay != null
                       ? 'Foto voor ${DateFormat('d MMMM yyyy', 'nl_NL').format(_selectedDay!)}'
                       : 'Kies een dag',
-                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 18, fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 15),
                 Stack(
                   children: [
                     Container(
-                      height: 350,
+                       height: 350,
                       width: double.infinity,
                       decoration: BoxDecoration(
                         color: Theme.of(context).cardColor,
@@ -251,18 +263,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               ),
                             ),
                     ),
-                    if (dailyEntry != null)
+                    if (dailyEntry != null && currentUser != null)
                       Positioned(
                         top: 8,
                         right: 8,
                         child: IconButton(
                           icon: Icon(
-                            dailyEntry.isFavorite ? Icons.star : Icons.star_border,
-                            color: dailyEntry.isFavorite ? Colors.amber : Colors.white,
+                            dailyEntry.isFavoritedBy(currentUser.uid) ? Icons.star : Icons.star_border,
+                            color: dailyEntry.isFavoritedBy(currentUser.uid) ? Colors.amber : Colors.white,
                             size: 30,
                             shadows: [Shadow(color: Colors.black.withAlpha(128), blurRadius: 4)],
                           ),
                           onPressed: () {
+                            // Any user can toggle their own favorite status
                             provider.toggleFavorite(profile.id!, _selectedDay!);
                           },
                         ),
@@ -273,11 +286,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ],
             ),
           ),
-          floatingActionButton: FloatingActionButton(
+          floatingActionButton: isOwner ? FloatingActionButton(
             tooltip: 'Foto toevoegen',
             onPressed: _pickImageForSelectedDay,
             child: const Icon(Icons.camera_alt),
-          ),
+          ) : null,
         );
       },
     );

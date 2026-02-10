@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -17,6 +18,8 @@ class CreateProfileScreen extends StatefulWidget {
 
 class _CreateProfileScreenState extends State<CreateProfileScreen> {
   final _formKey = GlobalKey<FormState>();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
   late String _name;
   late DateTime? _dateOfBirth;
   File? _profileImage;
@@ -81,6 +84,13 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
   void _saveProfile() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
+
+      final user = _auth.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('U moet ingelogd zijn om een profiel op te slaan')));
+        return;
+      }
+
       if (_dateOfBirth != null) {
         final profileData = Profile(
           id: widget.profile?.id,
@@ -88,6 +98,10 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
           dateOfBirth: _dateOfBirth!,
           profileImage: _profileImage,
           profileImageUrl: _profileImageUrl,
+          // Assign owner and preserve follower/share info on update
+          ownerId: widget.profile?.ownerId ?? user.uid,
+          followers: widget.profile?.followers ?? [],
+          shareCode: widget.profile?.shareCode,
         );
 
         final provider = Provider.of<ProfileProvider>(context, listen: false);
@@ -95,6 +109,7 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
            if (widget.profile != null) {
             await provider.updateProfile(widget.profile!.id!, profileData);
           } else {
+            // The provider's addProfile method will set the final ownerId and generate the shareCode
             await provider.addProfile(profileData);
           }
           if (mounted) {
@@ -127,7 +142,7 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Verwijderen'),
+            child: const Text('Verwijderen', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -137,9 +152,9 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
       try {
         await Provider.of<ProfileProvider>(context, listen: false).deleteProfile(widget.profile!.id!);
         if (mounted) {
-          Navigator.of(context).pop(); // Pop the edit screen
-          // Optionally, navigate to the profile selection screen if not already there
-          // This might require more complex navigation logic depending on your app's structure
+          // Pop twice to get back to the profile selection screen
+          Navigator.of(context).pop();
+          Navigator.of(context).pop();
         }
       } catch (e) {
         if (mounted) {
