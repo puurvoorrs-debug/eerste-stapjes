@@ -13,23 +13,27 @@ Eerste Stapjes is een mobiele applicatie gebouwd met Flutter, ontworpen om de gr
 - **Framework:** Flutter
 - **Backend:** Firebase
   - **Authenticatie:** Firebase Auth (geïntegreerd met Google Sign-In).
-  - **Database:** Cloud Firestore voor het opslaan van profielgegevens, dagelijkse entries en metadata van de dagelijkse foto's.
-  - **Opslag:** Firebase Storage voor het hosten van profielfoto's en de dagelijkse foto-uploads.
-- **State Management:** `provider` package wordt gebruikt voor het beheren van de app-status.
+  - **Database:** Cloud Firestore voor het opslaan van profielgegevens, dagelijkse entries en metadata.
+  - **Opslag:** Firebase Storage voor het hosten van profielfoto's en dagelijkse uploads.
+- **State Management:** `provider` package.
 - **Navigatie:** Standaard Flutter `MaterialPageRoute` navigatie.
 
 ### Kernfunctionaliteiten
 
-1.  **Gebruikersauthenticatie:**
+1.  **Gebruikersauthenticatie & Accounts:**
     - Veilige login via Google Sign-In.
+    - Gebruikers kunnen een accountnaam en profielfoto instellen en deze later wijzigen.
 
 2.  **Profielbeheer & Rollen:**
-    - **Ouder/Verzorger (Eigenaar):** Kan profielen aanmaken, bewerken, verwijderen en delen via een unieke code.
-    - **Volger:** Kan een profiel volgen met de unieke code en heeft alleen-lezen toegang.
+    - **Ouder/Verzorger (Eigenaar):** Kan kinderprofielen aanmaken, bewerken, verwijderen en delen via een unieke code.
+    - **Volger:** Kan een profiel volgen met de code en krijgt lees-toegang.
 
-3.  **Dagelijkse Momenten (Entries):**
-    - Eigenaren kunnen dagelijks een foto toevoegen aan een profiel.
-    - **Persoonlijke Favorieten:** Zowel eigenaren als volgers kunnen foto's als 'favoriet' markeren. Deze favorieten zijn per gebruiker opgeslagen.
+3.  **Sociale Interactie:**
+    - **Dagelijkse Momenten (Entries):** Eigenaren kunnen dagelijks een foto met beschrijving toevoegen.
+    - **Likes:** Zowel eigenaren als volgers kunnen posts 'liken'.
+    - **Reacties:** Gebruikers kunnen reageren op posts.
+    - **Favorieten:** Gebruikers kunnen posts markeren als persoonlijk favoriet.
+    - **Volgerslijst:** Eigenaren kunnen zien wie hun profielen volgt.
 
 ### User Interface (UI) & User Experience (UX)
 
@@ -39,59 +43,38 @@ Eerste Stapjes is een mobiele applicatie gebouwd met Flutter, ontworpen om de gr
 
 ---
 
-## Huidig Plan: Transformatie naar een Sociaal Platform
+## Huidig Plan: Beheerfunctionaliteit voor Reacties en Posts
 
-- **Status:** Grote Feature-uitbreiding.
-- **Doel:** De applicatie transformeren van een persoonlijk dagboek naar een interactief sociaal platform voor families, met meer personalisatie en interactiemogelijkheden.
+- **Status:** Implementatie.
+- **Doel:** Gebruikers meer controle geven over hun eigen content door bewerk- en verwijderopties toe te voegen voor reacties en posts.
 
-### Fase 1: Uitbreiding van de Data Structuur
+### Fase 1: Reactiebeheer (Bewerken & Verwijderen)
 
-1.  **`UserModel` introduceren:**
-    -   Een nieuwe root-collectie `users` in Firestore.
-    -   Elk document wordt een gebruikersprofiel, met velden als `uid`, `displayName`, en `photoUrl`.
+1.  **UI Aanpassingen (`photo_detail_screen.dart`):**
+    -   Bij elke reactie wordt een contextmenu (icoon met drie puntjes) toegevoegd.
+    -   Dit menu is **alleen zichtbaar** als de ingelogde gebruiker de auteur van de reactie is.
+    -   Het menu bevat de opties "Bewerken" en "Verwijderen".
+2.  **Logica in `ProfileProvider`:**
+    -   `deleteComment(profileId, entryDate, commentId)`: Implementeren van een functie die het specifieke commentaar-document uit de subcollectie in Firestore verwijdert.
+    -   `updateComment(profileId, entryDate, commentId, newText)`: Implementeren van een functie die de tekst van een bestaand commentaar bijwerkt.
+3.  **Dialogen voor Interactie:**
+    -   Een `AlertDialog` tonen om de gebruiker te vragen de verwijdering te bevestigen.
+    -   Een dialoog met een `TextField` tonen waarin de gebruiker zijn reactie kan bewerken.
 
-2.  **`DailyEntry` model aanpassen:**
-    -   Toevoegen van een `description` veld (String) voor de foto-omschrijving.
-    -   Toevoegen van een `likes` veld (List van `uid`'s) voor de openbare like-functionaliteit.
+### Fase 2: Posts Verwijderen
 
-3.  **`CommentModel` creëren:**
-    -   Voor elke `DailyEntry` wordt een subcollectie `comments` aangemaakt.
-    -   Elk document in deze subcollectie is een `CommentModel` met velden als `commentText`, `userId`, `userName`, `userPhotoUrl`, en `timestamp`.
+1.  **UI Aanpassing (`photo_detail_screen.dart`):**
+    -   Een prullenbak-icoon wordt toegevoegd aan de `AppBar` van het detailscherm.
+    -   Dit icoon is **alleen zichtbaar** als de ingelogde gebruiker de eigenaar van het profiel is.
+2.  **Logica in `ProfileProvider`:**
+    -   `deleteDailyEntry(profileId, entryDate)`: Creëren van een robuuste functie die de volgende stappen uitvoert:
+        1.  **Subcollecties verwijderen:** Alle documenten in de `comments` subcollectie van de `daily_entry` worden verwijderd.
+        2.  **Foto verwijderen:** De bijbehorende foto wordt uit Firebase Storage verwijderd met `refFromURL().delete()`.
+        3.  **Hoofddocument verwijderen:** Het `daily_entry` document zelf wordt verwijderd, waarmee de beschrijving, likes, en favorieten-lijsten ook verdwijnen.
 
-### Fase 2: Implementatie van Gebruikersaccounts
+### Fase 3: Schone Lei bij Nieuwe Upload
 
-1.  **Account Setup Scherm:**
-    -   Een nieuw scherm waar gebruikers na hun eerste login hun publieke `displayName` en `photoUrl` kunnen instellen.
-
-### Fase 3: Sociale Features op het Kalenderscherm
-
-1.  **Beschrijvingen:**
-    -   Tijdens het uploaden van een foto kan de eigenaar een beschrijving toevoegen.
-    -   De beschrijving wordt prominent onder de foto weergegeven.
-
-2.  **Like-functionaliteit:**
-    -   Een hart-icoon wordt toegevoegd onder elke foto.
-    -   Gebruikers kunnen een foto 'liken'. Het totale aantal likes wordt naast het icoon weergegeven.
-
-3.  **Reactiesysteem (Comment Section):**
-    -   Onder de foto en beschrijving komt een volledige commentaarsectie.
-    -   Een invoerveld om een nieuwe reactie te plaatsen.
-    -   Een lijst van alle bestaande reacties, waarbij de profielfoto en naam van de reageerder zichtbaar zijn.
-
-### Fase 4: Inzicht in Volgers
-
-1.  **Volgerslijst Scherm:**
-    -   Een nieuw scherm, alleen toegankelijk voor de eigenaar, dat een lijst toont van alle gebruikers die het profiel volgen.
-    -   Deze lijst toont de `displayName` en `photoUrl` van elke volger.
-
-### Fase 5: Accountinstellingen (NIEUW)
-
-1.  **Toegangspunt creëren:**
-    -   Een "Instellingen" icoon wordt toegevoegd aan de `AppBar` van het `ProfileSelectionScreen`.
-    -   Dit icoon navigeert de gebruiker naar het `AccountSettingsScreen`.
-2.  **`AccountSettingsScreen` bouwen:**
-    -   Een nieuw scherm waar de gebruiker zijn huidige `displayName` en `photoUrl` kan bekijken en bewerken.
-    -   Functionaliteit voor het kiezen en uploaden van een nieuwe profielfoto.
-    -   Een tekstveld om de `displayName` te wijzigen.
-3.  **Logica voor opslaan:**
-    -   Een opslagfunctie die de bijgewerkte gegevens wegschrijft naar het document van de gebruiker in de `users` collectie in Firestore.
+1.  **Logica aanpassen in `ProfileProvider`:**
+    -   De bestaande `addPhotoToProfile` functie wordt aangepast.
+    -   Voordat een nieuwe foto wordt geüpload, controleert de functie of er al een `daily_entry` bestaat voor die specifieke dag.
+    -   Indien ja, wordt de nieuwe `deleteDailyEntry` functie aangeroepen om de oude post volledig op te ruimen voordat de nieuwe wordt aangemaakt. Dit garandeert de "schone lei" die is gevraagd.

@@ -15,7 +15,7 @@ import '../providers/theme_provider.dart';
 import 'favorites_screen.dart';
 import 'create_profile_screen.dart';
 import 'photo_detail_screen.dart';
-import 'followers_screen.dart'; // Import het nieuwe volgersscherm
+import 'followers_screen.dart'; 
 import 'dart:developer' as developer;
 
 class CalendarScreen extends StatefulWidget {
@@ -84,7 +84,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final descriptionController = TextEditingController();
     final formKey = GlobalKey<FormState>();
 
-    // Toon dialoog voor beschrijving
     final description = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
@@ -132,13 +131,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return entry != null ? [entry] : [];
   }
 
+  // GECORRIGEERD: Gebruikt nu het volledige profielobject
   void _navigateToDetailScreen(DailyEntry entry) {
      if (_selectedDay == null) return;
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => PhotoDetailScreen(
-            profileId: widget.profile.id!,
+            profile: widget.profile,
             date: _selectedDay!,
           ),
         ),
@@ -166,7 +166,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
           appBar: AppBar(
             title: Text(profile.name),
             actions: [
-              // NIEUW: Volgersknop, alleen voor eigenaar
               if (isOwner)
                 IconButton(
                   icon: const Icon(Icons.people_alt_outlined),
@@ -352,7 +351,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ),
           floatingActionButton: isOwner ? FloatingActionButton(
             tooltip: 'Foto toevoegen',
-            onPressed: _showAddPhotoDialog, // Gebruik de nieuwe dialoog-methode
+            onPressed: _showAddPhotoDialog, 
             child: const Icon(Icons.camera_alt),
           ) : null,
         );

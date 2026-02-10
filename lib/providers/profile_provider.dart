@@ -61,7 +61,6 @@ class ProfileProvider with ChangeNotifier {
         length, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
   }
 
-  // Gecorrigeerd: Accepteert nu metadata voor de upload.
   Future<String> _uploadImage(File image, String path, {String? ownerId}) async {
     final ref = _storage.ref().child(path);
     final metadata = SettableMetadata(customMetadata: {
@@ -82,7 +81,6 @@ class ProfileProvider with ChangeNotifier {
 
     String? imageUrl;
     if (profile.profileImage != null) {
-      // Gecorrigeerd: ownerId wordt meegegeven aan de upload.
       imageUrl = await _uploadImage(
         profile.profileImage!,
         'profile_pictures/$profileId/profile_image.jpg',
@@ -106,11 +104,10 @@ class ProfileProvider with ChangeNotifier {
 
     String? imageUrl = newProfileData.profileImageUrl;
     if (newProfileData.profileImage != null) {
-      // Gecorrigeerd: ownerId wordt meegegeven aan de upload.
       imageUrl = await _uploadImage(
         newProfileData.profileImage!,
         'profile_pictures/$profileId/profile_image.jpg',
-        ownerId: user.uid, // Belangrijk voor autorisatie
+        ownerId: user.uid,
       );
     }
     
@@ -123,15 +120,8 @@ class ProfileProvider with ChangeNotifier {
 
     final dailyEntriesSnapshot = await profileRef.collection('daily_entries').get();
     for (final doc in dailyEntriesSnapshot.docs) {
-        final data = doc.data();
-        if (data['photoUrl'] != null) {
-            try {
-                await _storage.refFromURL(data['photoUrl']).delete();
-            } catch (e) {
-                debugPrint("Failed to delete photo from storage: $e");
-            }
-        }
-        await doc.reference.delete();
+        // Gebruik de nieuwe robuuste verwijderfunctie
+        await deleteDailyEntry(profileId, DateTime.parse(doc.id));
     }
 
     final profileDoc = await profileRef.get();
@@ -146,20 +136,51 @@ class ProfileProvider with ChangeNotifier {
     await profileRef.delete();
   }
 
-  // AANGEPAST: Accepteert nu een beschrijving en metadata voor dagelijkse foto's
+  // NIEUW: Robuuste functie om een dagelijkse post te verwijderen
+  Future<void> deleteDailyEntry(String profileId, DateTime date) async {
+    final dateString = date.toIso8601String().split('T').first;
+    final entryRef = _firestore.collection('profiles').doc(profileId).collection('daily_entries').doc(dateString);
+
+    final entryDoc = await entryRef.get();
+    if (!entryDoc.exists) return; // Post bestaat niet
+
+    // 1. Verwijder alle reacties in de subcollectie
+    final commentsSnapshot = await entryRef.collection('comments').get();
+    for (final doc in commentsSnapshot.docs) {
+      await doc.reference.delete();
+    }
+
+    // 2. Verwijder de foto uit Firebase Storage
+    final data = entryDoc.data();
+    if (data != null && data['photoUrl'] != null) {
+      try {
+        await _storage.refFromURL(data['photoUrl']).delete();
+      } catch (e) {
+        debugPrint("Failed to delete daily photo from storage: $e");
+      }
+    }
+
+    // 3. Verwijder het hoofddocument
+    await entryRef.delete();
+  }
+
+  // AANGEPAST: Zorgt voor een schone lei bij het uploaden
   Future<void> addPhotoToProfile(String profileId, DateTime date, File imageFile, {String description = ''}) async {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    // Haal de lijst met volgers op om in de metadata op te slaan
-    final profileDoc = await _firestore.collection('profiles').doc(profileId).get();
-    final followers = List<String>.from(profileDoc.data()?['followers'] ?? []);
-
     final dateString = date.toIso8601String().split('T').first;
+    final entryRef = _firestore.collection('profiles').doc(profileId).collection('daily_entries').doc(dateString);
+
+    // Controleer of er al een post is en verwijder deze (schone lei)
+    if ((await entryRef.get()).exists) {
+      await deleteDailyEntry(profileId, date);
+    }
+
     final imageUrl = await _uploadImage(
       imageFile, 
       'daily_pictures/$profileId/$dateString.jpg',
-      ownerId: user.uid, // Eigenaar UID toevoegen voor de beveiligingsregel
+      ownerId: user.uid,
     );
 
     final dailyEntry = DailyEntry(
@@ -169,10 +190,7 @@ class ProfileProvider with ChangeNotifier {
       likes: [],
     );
 
-    await _firestore
-        .collection('profiles').doc(profileId)
-        .collection('daily_entries').doc(dateString)
-        .set(dailyEntry.toMap());
+    await entryRef.set(dailyEntry.toMap());
   }
 
   Future<void> toggleFavorite(String profileId, DateTime date) async {
@@ -180,9 +198,7 @@ class ProfileProvider with ChangeNotifier {
     if (user == null) return;
 
     final dateString = date.toIso8601String().split('T').first;
-    final docRef = _firestore
-        .collection('profiles').doc(profileId)
-        .collection('daily_entries').doc(dateString);
+    final docRef = _firestore.collection('profiles').doc(profileId).collection('daily_entries').doc(dateString);
 
     return _firestore.runTransaction((transaction) async {
       final snapshot = await transaction.get(docRef);
@@ -198,15 +214,12 @@ class ProfileProvider with ChangeNotifier {
     });
   }
 
-  // NIEUW: Like-functionaliteit
   Future<void> toggleLike(String profileId, DateTime date) async {
     final user = _auth.currentUser;
     if (user == null) return;
 
     final dateString = date.toIso8601String().split('T').first;
-    final docRef = _firestore
-        .collection('profiles').doc(profileId)
-        .collection('daily_entries').doc(dateString);
+    final docRef = _firestore.collection('profiles').doc(profileId).collection('daily_entries').doc(dateString);
 
     return _firestore.runTransaction((transaction) async {
       final snapshot = await transaction.get(docRef);
@@ -222,21 +235,16 @@ class ProfileProvider with ChangeNotifier {
     });
   }
 
-  // NIEUW: Reactie toevoegen
   Future<void> addComment(String profileId, DateTime date, String commentText) async {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    // Haal de profielgegevens van de huidige gebruiker op
     final userDoc = await _firestore.collection('users').doc(user.uid).get();
-    if (!userDoc.exists) return; // Gebruiker moet een profiel hebben
+    if (!userDoc.exists) return;
     final userProfile = UserModel.fromDocument(userDoc);
 
     final dateString = date.toIso8601String().split('T').first;
-    final commentRef = _firestore
-        .collection('profiles').doc(profileId)
-        .collection('daily_entries').doc(dateString)
-        .collection('comments').doc();
+    final commentRef = _firestore.collection('profiles').doc(profileId).collection('daily_entries').doc(dateString).collection('comments').doc();
 
     final newComment = CommentModel(
       id: commentRef.id,
@@ -248,6 +256,21 @@ class ProfileProvider with ChangeNotifier {
     );
 
     await commentRef.set(newComment.toMap());
+  }
+
+  // NIEUW: Reactie verwijderen
+  Future<void> deleteComment(String profileId, DateTime date, String commentId) async {
+    final dateString = date.toIso8601String().split('T').first;
+    await _firestore.collection('profiles').doc(profileId).collection('daily_entries').doc(dateString).collection('comments').doc(commentId).delete();
+  }
+
+  // NIEUW: Reactie bewerken
+  Future<void> updateComment(String profileId, DateTime date, String commentId, String newText) async {
+    final dateString = date.toIso8601String().split('T').first;
+    await _firestore.collection('profiles').doc(profileId).collection('daily_entries').doc(dateString).collection('comments').doc(commentId).update({
+      'commentText': newText,
+      'timestamp': FieldValue.serverTimestamp(), // Update timestamp on edit
+    });
   }
 
   Future<bool> followProfile(String shareCode) async {
@@ -268,7 +291,7 @@ class ProfileProvider with ChangeNotifier {
     final profileData = profileDoc.data();
 
     if (profileData['ownerId'] == user.uid) {
-      return false; // Kan eigen profiel niet volgen
+      return false;
     }
     
     await profileDoc.reference.update({
