@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../models/profile.dart';
 import 'create_profile_screen.dart';
 import 'calendar_screen.dart';
+import 'account_settings_screen.dart'; // Importeer het nieuwe scherm
 
 class ProfileSelectionScreen extends StatelessWidget {
   const ProfileSelectionScreen({super.key});
@@ -122,6 +123,18 @@ class ProfileSelectionScreen extends StatelessWidget {
                   ),
                 )
               ],
+            ),
+          ),
+          // NIEUW: Knop voor accountinstellingen
+          Positioned(
+            top: 40,
+            left: 10,
+            child: IconButton(
+              icon: const Icon(Icons.settings, color: Colors.white, size: 30),
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const AccountSettingsScreen()));
+              },
+              tooltip: 'Accountinstellingen',
             ),
           ),
           Positioned(

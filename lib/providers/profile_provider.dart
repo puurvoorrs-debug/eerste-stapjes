@@ -7,6 +7,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/profile.dart';
 import '../models/daily_entry.dart';
+import '../models/comment_model.dart';
+import '../models/user_model.dart';
 
 class ProfileProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -59,9 +61,14 @@ class ProfileProvider with ChangeNotifier {
         length, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
   }
 
-  Future<String> _uploadImage(File image, String path) async {
+  // Gecorrigeerd: Accepteert nu metadata voor de upload.
+  Future<String> _uploadImage(File image, String path, {String? ownerId}) async {
     final ref = _storage.ref().child(path);
-    final uploadTask = ref.putFile(image);
+    final metadata = SettableMetadata(customMetadata: {
+      if (ownerId != null) 'ownerId': ownerId,
+    });
+
+    final uploadTask = ref.putFile(image, metadata);
     final snapshot = await uploadTask;
     return await snapshot.ref.getDownloadURL();
   }
@@ -75,7 +82,12 @@ class ProfileProvider with ChangeNotifier {
 
     String? imageUrl;
     if (profile.profileImage != null) {
-      imageUrl = await _uploadImage(profile.profileImage!, 'profiles/$profileId/profile_image.jpg');
+      // Gecorrigeerd: ownerId wordt meegegeven aan de upload.
+      imageUrl = await _uploadImage(
+        profile.profileImage!,
+        'profile_pictures/$profileId/profile_image.jpg',
+        ownerId: user.uid,
+      );
     }
 
     final newProfile = profile.copyWith(
@@ -89,9 +101,17 @@ class ProfileProvider with ChangeNotifier {
   }
 
   Future<void> updateProfile(String profileId, Profile newProfileData) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
     String? imageUrl = newProfileData.profileImageUrl;
     if (newProfileData.profileImage != null) {
-      imageUrl = await _uploadImage(newProfileData.profileImage!, 'profiles/$profileId/profile_image.jpg');
+      // Gecorrigeerd: ownerId wordt meegegeven aan de upload.
+      imageUrl = await _uploadImage(
+        newProfileData.profileImage!,
+        'profile_pictures/$profileId/profile_image.jpg',
+        ownerId: user.uid, // Belangrijk voor autorisatie
+      );
     }
     
     final updatedProfile = newProfileData.copyWith(profileImageUrl: imageUrl);
@@ -126,12 +146,28 @@ class ProfileProvider with ChangeNotifier {
     await profileRef.delete();
   }
 
-  Future<void> addPhotoToProfile(String profileId, DateTime date, File imageFile) async {
-    final dateString = date.toIso8601String().split('T').first;
-    final imageUrl = await _uploadImage(imageFile, 'profiles/$profileId/photos/$dateString.jpg');
+  // AANGEPAST: Accepteert nu een beschrijving en metadata voor dagelijkse foto's
+  Future<void> addPhotoToProfile(String profileId, DateTime date, File imageFile, {String description = ''}) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
 
-    // Create a new entry with an empty favoritedBy list
-    final dailyEntry = DailyEntry(photoUrl: imageUrl, favoritedBy: []);
+    // Haal de lijst met volgers op om in de metadata op te slaan
+    final profileDoc = await _firestore.collection('profiles').doc(profileId).get();
+    final followers = List<String>.from(profileDoc.data()?['followers'] ?? []);
+
+    final dateString = date.toIso8601String().split('T').first;
+    final imageUrl = await _uploadImage(
+      imageFile, 
+      'daily_pictures/$profileId/$dateString.jpg',
+      ownerId: user.uid, // Eigenaar UID toevoegen voor de beveiligingsregel
+    );
+
+    final dailyEntry = DailyEntry(
+      photoUrl: imageUrl,
+      description: description,
+      favoritedBy: [],
+      likes: [],
+    );
 
     await _firestore
         .collection('profiles').doc(profileId)
@@ -148,21 +184,70 @@ class ProfileProvider with ChangeNotifier {
         .collection('profiles').doc(profileId)
         .collection('daily_entries').doc(dateString);
 
-    await _firestore.runTransaction((transaction) async {
+    return _firestore.runTransaction((transaction) async {
       final snapshot = await transaction.get(docRef);
-      if (snapshot.exists) {
-        final data = snapshot.data()!;
-        final List<String> favoritedBy = List<String>.from(data['favoritedBy'] ?? []);
+      if (!snapshot.exists) return;
+      final data = snapshot.data()!;
+      final List<String> favoritedBy = List<String>.from(data['favoritedBy'] ?? []);
 
-        if (favoritedBy.contains(user.uid)) {
-          // User already favorited, so remove them
-          transaction.update(docRef, {'favoritedBy': FieldValue.arrayRemove([user.uid])});
-        } else {
-          // User has not favorited, so add them
-          transaction.update(docRef, {'favoritedBy': FieldValue.arrayUnion([user.uid])});
-        }
+      if (favoritedBy.contains(user.uid)) {
+        transaction.update(docRef, {'favoritedBy': FieldValue.arrayRemove([user.uid])});
+      } else {
+        transaction.update(docRef, {'favoritedBy': FieldValue.arrayUnion([user.uid])});
       }
     });
+  }
+
+  // NIEUW: Like-functionaliteit
+  Future<void> toggleLike(String profileId, DateTime date) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final dateString = date.toIso8601String().split('T').first;
+    final docRef = _firestore
+        .collection('profiles').doc(profileId)
+        .collection('daily_entries').doc(dateString);
+
+    return _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(docRef);
+      if (!snapshot.exists) return;
+      final data = snapshot.data()!;
+      final List<String> likes = List<String>.from(data['likes'] ?? []);
+
+      if (likes.contains(user.uid)) {
+        transaction.update(docRef, {'likes': FieldValue.arrayRemove([user.uid])});
+      } else {
+        transaction.update(docRef, {'likes': FieldValue.arrayUnion([user.uid])});
+      }
+    });
+  }
+
+  // NIEUW: Reactie toevoegen
+  Future<void> addComment(String profileId, DateTime date, String commentText) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    // Haal de profielgegevens van de huidige gebruiker op
+    final userDoc = await _firestore.collection('users').doc(user.uid).get();
+    if (!userDoc.exists) return; // Gebruiker moet een profiel hebben
+    final userProfile = UserModel.fromDocument(userDoc);
+
+    final dateString = date.toIso8601String().split('T').first;
+    final commentRef = _firestore
+        .collection('profiles').doc(profileId)
+        .collection('daily_entries').doc(dateString)
+        .collection('comments').doc();
+
+    final newComment = CommentModel(
+      id: commentRef.id,
+      userId: user.uid,
+      userName: userProfile.displayName,
+      userPhotoUrl: userProfile.photoUrl,
+      commentText: commentText,
+      timestamp: Timestamp.now(),
+    );
+
+    await commentRef.set(newComment.toMap());
   }
 
   Future<bool> followProfile(String shareCode) async {
@@ -183,7 +268,7 @@ class ProfileProvider with ChangeNotifier {
     final profileData = profileDoc.data();
 
     if (profileData['ownerId'] == user.uid) {
-      return false;
+      return false; // Kan eigen profiel niet volgen
     }
     
     await profileDoc.reference.update({

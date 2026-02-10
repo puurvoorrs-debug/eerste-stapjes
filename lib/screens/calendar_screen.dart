@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Import for Clipboard
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -14,6 +14,8 @@ import '../providers/profile_provider.dart';
 import '../providers/theme_provider.dart';
 import 'favorites_screen.dart';
 import 'create_profile_screen.dart';
+import 'photo_detail_screen.dart';
+import 'followers_screen.dart'; // Import het nieuwe volgersscherm
 import 'dart:developer' as developer;
 
 class CalendarScreen extends StatefulWidget {
@@ -54,7 +56,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           final date = DateTime.parse(doc.id);
           newEntries[date] = DailyEntry.fromMap(doc.data());
         } catch (e, s) {
-          developer.log("Error parsing date from document ID: ${doc.id}", name: 'calendar_screen', error: e, stackTrace: s);
+          developer.log("Error parsing date: ${doc.id}", name: 'calendar_screen', error: e, stackTrace: s);
         }
       }
       if (mounted) {
@@ -65,9 +67,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
-  Future<void> _pickImageForSelectedDay() async {
+  Future<void> _showAddPhotoDialog() async {
     if (_selectedDay == null || widget.profile.id == null) return;
-    
+
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser?.uid != widget.profile.ownerId) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -76,15 +78,49 @@ class _CalendarScreenState extends State<CalendarScreen> {
       return;
     }
 
-    final provider = Provider.of<ProfileProvider>(context, listen: false);
     final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (pickedFile == null) return;
 
-    if (pickedFile != null) {
+    final descriptionController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    // Toon dialoog voor beschrijving
+    final description = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Voeg een beschrijving toe'),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: descriptionController,
+            decoration: const InputDecoration(labelText: 'Beschrijving (optioneel)'),
+            maxLines: 3,
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Annuleren')),
+          ElevatedButton(
+            onPressed: () {
+               Navigator.of(context).pop(descriptionController.text);
+            },
+            child: const Text('Opslaan'),
+          ),
+        ],
+      ),
+    );
+
+    if (description != null) {
+      final provider = Provider.of<ProfileProvider>(context, listen: false);
       try {
-        await provider.addPhotoToProfile(widget.profile.id!, _selectedDay!, File(pickedFile.path));
+        await provider.addPhotoToProfile(
+          widget.profile.id!,
+          _selectedDay!,
+          File(pickedFile.path),
+          description: description,
+        );
       } catch (e) {
-        if(mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Fout bij uploaden: $e")));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Fout bij uploaden: $e")));
         }
       }
     }
@@ -94,6 +130,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final normalizedDay = DateTime(day.year, day.month, day.day);
     final entry = _entries[normalizedDay];
     return entry != null ? [entry] : [];
+  }
+
+  void _navigateToDetailScreen(DailyEntry entry) {
+     if (_selectedDay == null) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PhotoDetailScreen(
+            profileId: widget.profile.id!,
+            date: _selectedDay!,
+          ),
+        ),
+      );
   }
 
   @override
@@ -117,7 +166,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
           appBar: AppBar(
             title: Text(profile.name),
             actions: [
-              if (isOwner && profile.shareCode != null)
+              // NIEUW: Volgersknop, alleen voor eigenaar
+              if (isOwner)
+                IconButton(
+                  icon: const Icon(Icons.people_alt_outlined),
+                  tooltip: 'Volgers',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => FollowersScreen(profile: profile)),
+                    );
+                  },
+                ),
+               if (isOwner && profile.shareCode != null)
                 IconButton(
                   icon: const Icon(Icons.share),
                   tooltip: 'Deel Profiel',
@@ -149,9 +210,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ),
               IconButton(
                 icon: Icon(themeProvider.isDarkMode ? Icons.light_mode : Icons.dark_mode),
-                onPressed: () {
-                  themeProvider.toggleTheme(!themeProvider.isDarkMode);
-                },
+                onPressed: () => themeProvider.toggleTheme(!themeProvider.isDarkMode),
               ),
             ],
           ),
@@ -159,7 +218,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             padding: const EdgeInsets.all(12.0),
             child: Column(
               children: [
-                Container(
+                 Container(
                   decoration: BoxDecoration(
                     color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(16),
@@ -178,7 +237,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         _focusedDay = focusedDay;
                       });
                     },
-                    headerStyle: HeaderStyle(
+                    headerStyle: const HeaderStyle(
                       titleCentered: true,
                       formatButtonVisible: false,
                     ),
@@ -221,66 +280,71 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ),
                 ),
                 const SizedBox(height: 30),
-                Text(
+                 Text(
                   _selectedDay != null
-                      ? 'Foto voor ${DateFormat('d MMMM yyyy', 'nl_NL').format(_selectedDay!)}'
+                      ? 'Moment van ${DateFormat('d MMMM yyyy', 'nl_NL').format(_selectedDay!)}'
                       : 'Kies een dag',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 15),
-                Stack(
-                  children: [
-                    Container(
-                       height: 350,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).cardColor,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: dailyEntry != null
-                          ? ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: Image.network(
-                                dailyEntry.photoUrl,
-                                fit: BoxFit.cover,
-                                loadingBuilder: (context, child, progress) {
-                                  return progress == null ? child : const Center(child: CircularProgressIndicator());
-                                },
-                                errorBuilder: (context, error, stack) => const Center(child: Icon(Icons.error, color: Colors.red, size: 50)),
-                              ),
-                          )
-                          : Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.photo_library_outlined, color: Theme.of(context).colorScheme.onSurface.withAlpha(153), size: 60),
-                                  const SizedBox(height: 10),
-                                  Text(
-                                    'Geen foto voor deze dag',
-                                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(153), fontSize: 16),
-                                  ),
-                                ],
-                              ),
-                            ),
-                    ),
-                    if (dailyEntry != null && currentUser != null)
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: IconButton(
-                          icon: Icon(
-                            dailyEntry.isFavoritedBy(currentUser.uid) ? Icons.star : Icons.star_border,
-                            color: dailyEntry.isFavoritedBy(currentUser.uid) ? Colors.amber : Colors.white,
-                            size: 30,
-                            shadows: [Shadow(color: Colors.black.withAlpha(128), blurRadius: 4)],
-                          ),
-                          onPressed: () {
-                            // Any user can toggle their own favorite status
-                            provider.toggleFavorite(profile.id!, _selectedDay!);
-                          },
+                GestureDetector(
+                   onTap: () {
+                      if (dailyEntry != null) {
+                        _navigateToDetailScreen(dailyEntry);
+                      }
+                   },
+                   child: Stack(
+                    children: [
+                      Container(
+                         height: 350,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).cardColor,
+                          borderRadius: BorderRadius.circular(16),
                         ),
+                        child: dailyEntry != null
+                            ? Hero(
+                                tag: 'photo_${_selectedDay!.toIso8601String().split('T').first}',
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: Image.network(
+                                      dailyEntry.photoUrl,
+                                      fit: BoxFit.cover,
+                                      loadingBuilder: (context, child, progress) {
+                                        return progress == null ? child : const Center(child: CircularProgressIndicator());
+                                      },
+                                      errorBuilder: (context, error, stack) => const Center(child: Icon(Icons.error, color: Colors.red, size: 50)),
+                                    ),
+                                ),
+                            )
+                            : Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.photo_library_outlined, color: Theme.of(context).colorScheme.onSurface.withAlpha(153), size: 60),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      'Geen foto voor deze dag',
+                                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(153), fontSize: 16),
+                                    ),
+                                  ],
+                                ),
+                              ),
                       ),
-                  ],
+                      if (dailyEntry != null) // Toon een 'bekijk meer' icoon
+                        Positioned.fill(
+                          child: Container(
+                             decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              color: Colors.black.withOpacity(0.2),
+                            ),
+                            child: const Center(
+                              child: Icon(Icons.zoom_in, color: Colors.white, size: 50, shadows: [Shadow(color: Colors.black54, blurRadius: 8)]),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 90),
               ],
@@ -288,7 +352,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ),
           floatingActionButton: isOwner ? FloatingActionButton(
             tooltip: 'Foto toevoegen',
-            onPressed: _pickImageForSelectedDay,
+            onPressed: _showAddPhotoDialog, // Gebruik de nieuwe dialoog-methode
             child: const Icon(Icons.camera_alt),
           ) : null,
         );

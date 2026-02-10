@@ -13,9 +13,9 @@ Eerste Stapjes is een mobiele applicatie gebouwd met Flutter, ontworpen om de gr
 - **Framework:** Flutter
 - **Backend:** Firebase
   - **Authenticatie:** Firebase Auth (geïntegreerd met Google Sign-In).
-  - **Database:** Cloud Firestore voor het opslaan van gebruikersdata, profielinformatie en metadata van de dagelijkse entries.
+  - **Database:** Cloud Firestore voor het opslaan van profielgegevens, dagelijkse entries en metadata van de dagelijkse foto's.
   - **Opslag:** Firebase Storage voor het hosten van profielfoto's en de dagelijkse foto-uploads.
-- **State Management:** `provider` package wordt gebruikt voor het beheren van de app-status, zoals de profiel-data.
+- **State Management:** `provider` package wordt gebruikt voor het beheren van de app-status.
 - **Navigatie:** Standaard Flutter `MaterialPageRoute` navigatie.
 
 ### Kernfunctionaliteiten
@@ -26,41 +26,72 @@ Eerste Stapjes is een mobiele applicatie gebouwd met Flutter, ontworpen om de gr
 2.  **Profielbeheer & Rollen:**
     - **Ouder/Verzorger (Eigenaar):** Kan profielen aanmaken, bewerken, verwijderen en delen via een unieke code.
     - **Volger:** Kan een profiel volgen met de unieke code en heeft alleen-lezen toegang.
-    - Profielen worden opgeslagen in een centrale `profiles` collectie om delen mogelijk te maken.
 
 3.  **Dagelijkse Momenten (Entries):**
     - Eigenaren kunnen dagelijks een foto toevoegen aan een profiel.
-    - Zowel eigenaren als volgers kunnen foto's als 'favoriet' markeren. Deze favorieten zijn per gebruiker opgeslagen.
+    - **Persoonlijke Favorieten:** Zowel eigenaren als volgers kunnen foto's als 'favoriet' markeren. Deze favorieten zijn per gebruiker opgeslagen.
 
 ### User Interface (UI) & User Experience (UX)
 
 - **Design Stijl:** Material Design 3.
 - **Thema:** Ondersteuning voor lichte en donkere modus.
-- **Schermen:**
-  - **`ProfileSelectionScreen`:** Toont een gescheiden weergave van 'Mijn Profielen' en 'Gevolgde Profielen'. Bevat knoppen om een nieuw profiel te maken of een bestaand profiel te volgen.
-  - **`CreateProfileScreen`:** Formulier voor het aanmaken/bewerken van profielen.
-  - **`CalendarScreen`:** Kalenderweergave van de dagelijkse foto's. Eigenaren zien hier een 'Deel' knop om de profielcode te kopiëren.
-
-### Debugging & Oplossingen
-
-- **Diverse Build & Runtime Fouten:** Opgelost tijdens de initiële ontwikkeling.
-- **Data Structuur:** Gemigreerd van een geneste (`users/{uid}/profiles`) naar een centrale (`profiles`) datastructuur om het delen van profielen te faciliteren.
+- **Layout:** Diverse layout-problemen zijn opgelost voor een strakkere en professionelere uitstraling.
 
 ---
 
-## Huidig Plan
+## Huidig Plan: Transformatie naar een Sociaal Platform
 
-- **Status:** Bugfixes en Feature Verbetering.
-- **Doel:** De layout van het profielselectiescherm corrigeren en de favorieten-functionaliteit aanpassen.
-- **Acties:**
-    1.  **Layout Fix (`ProfileSelectionScreen`):**
-        - Het probleem waarbij de profiellijst niet correct gecentreerd is en avatars worden afgesneden, wordt opgelost.
-        - De `ListView` en de bijbehorende widgets worden aangepast om een visueel correcte en gebalanceerde weergave te garanderen.
+- **Status:** Grote Feature-uitbreiding.
+- **Doel:** De applicatie transformeren van een persoonlijk dagboek naar een interactief sociaal platform voor families, met meer personalisatie en interactiemogelijkheden.
 
-    2.  **Favorieten per Gebruiker:**
-        - **Datamodel Aanpassen:** Het `DailyEntry` model wordt aangepast. Het veld `isFavorite` (een boolean) wordt vervangen door `favoritedBy` (een lijst van gebruiker-UIDs).
-        - **Provider Aanpassen:** De `toggleFavorite` methode in de `ProfileProvider` wordt bijgewerkt. In plaats van een boolean te wisselen, voegt het nu de UID van de huidige gebruiker toe aan of verwijdert het uit de `favoritedBy` lijst in Firestore.
-        - **UI Aanpassen (`CalendarScreen` & `FavoritesScreen`):**
-            - De logica wordt aangepast om te controleren of de UID van de *huidige* gebruiker in de `favoritedBy` lijst staat.
-            - Dit zorgt ervoor dat de favorieten-status (het ster-icoon) correct wordt weergegeven voor elke individuele gebruiker.
-            - Het `FavoritesScreen` zal alleen de foto's tonen die door de *huidige* gebruiker als favoriet zijn gemarkeerd.
+### Fase 1: Uitbreiding van de Data Structuur
+
+1.  **`UserModel` introduceren:**
+    -   Een nieuwe root-collectie `users` in Firestore.
+    -   Elk document wordt een gebruikersprofiel, met velden als `uid`, `displayName`, en `photoUrl`.
+
+2.  **`DailyEntry` model aanpassen:**
+    -   Toevoegen van een `description` veld (String) voor de foto-omschrijving.
+    -   Toevoegen van een `likes` veld (List van `uid`'s) voor de openbare like-functionaliteit.
+
+3.  **`CommentModel` creëren:**
+    -   Voor elke `DailyEntry` wordt een subcollectie `comments` aangemaakt.
+    -   Elk document in deze subcollectie is een `CommentModel` met velden als `commentText`, `userId`, `userName`, `userPhotoUrl`, en `timestamp`.
+
+### Fase 2: Implementatie van Gebruikersaccounts
+
+1.  **Account Setup Scherm:**
+    -   Een nieuw scherm waar gebruikers na hun eerste login hun publieke `displayName` en `photoUrl` kunnen instellen.
+
+### Fase 3: Sociale Features op het Kalenderscherm
+
+1.  **Beschrijvingen:**
+    -   Tijdens het uploaden van een foto kan de eigenaar een beschrijving toevoegen.
+    -   De beschrijving wordt prominent onder de foto weergegeven.
+
+2.  **Like-functionaliteit:**
+    -   Een hart-icoon wordt toegevoegd onder elke foto.
+    -   Gebruikers kunnen een foto 'liken'. Het totale aantal likes wordt naast het icoon weergegeven.
+
+3.  **Reactiesysteem (Comment Section):**
+    -   Onder de foto en beschrijving komt een volledige commentaarsectie.
+    -   Een invoerveld om een nieuwe reactie te plaatsen.
+    -   Een lijst van alle bestaande reacties, waarbij de profielfoto en naam van de reageerder zichtbaar zijn.
+
+### Fase 4: Inzicht in Volgers
+
+1.  **Volgerslijst Scherm:**
+    -   Een nieuw scherm, alleen toegankelijk voor de eigenaar, dat een lijst toont van alle gebruikers die het profiel volgen.
+    -   Deze lijst toont de `displayName` en `photoUrl` van elke volger.
+
+### Fase 5: Accountinstellingen (NIEUW)
+
+1.  **Toegangspunt creëren:**
+    -   Een "Instellingen" icoon wordt toegevoegd aan de `AppBar` van het `ProfileSelectionScreen`.
+    -   Dit icoon navigeert de gebruiker naar het `AccountSettingsScreen`.
+2.  **`AccountSettingsScreen` bouwen:**
+    -   Een nieuw scherm waar de gebruiker zijn huidige `displayName` en `photoUrl` kan bekijken en bewerken.
+    -   Functionaliteit voor het kiezen en uploaden van een nieuwe profielfoto.
+    -   Een tekstveld om de `displayName` te wijzigen.
+3.  **Logica voor opslaan:**
+    -   Een opslagfunctie die de bijgewerkte gegevens wegschrijft naar het document van de gebruiker in de `users` collectie in Firestore.

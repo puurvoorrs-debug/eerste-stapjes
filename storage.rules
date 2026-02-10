@@ -1,8 +1,32 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    match /users/{userId}/{allPaths=**} {
+
+    // Regel voor gebruikersprofielfoto's
+    // Sta een gebruiker toe om zijn eigen profielfoto te lezen en schrijven.
+    match /user_profile_pictures/{userId}/{imageName} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Regel voor de profielfoto's van kinderprofielen
+    // Iedereen die is ingelogd kan de foto's lezen.
+    // Alleen de eigenaar van het profiel kan de foto's schrijven.
+    // Dit vereist dat de 'ownerId' als metadata aan het bestand wordt toegevoegd bij het uploaden.
+    match /profile_pictures/{profileId}/{imageName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.resource.metadata.ownerId == request.auth.uid;
+    }
+
+    // Regel voor de dagelijkse foto's
+    // Alleen de eigenaar en volgers kunnen de foto's lezen.
+    // Alleen de eigenaar kan de foto's schrijven.
+    // Dit vereist dat 'ownerId' en 'followers' (als een komma-gescheiden lijst van UIDs)
+    // als metadata aan het bestand worden toegevoegd bij het uploaden.
+    match /daily_pictures/{profileId}/{imageName} {
+       allow read: if request.auth != null &&
+                      (resource.metadata.ownerId == request.auth.uid ||
+                       (resource.metadata.followers != null && request.auth.uid in resource.metadata.followers.split(',')));
+       allow write: if request.auth != null && request.resource.metadata.ownerId == request.auth.uid;
     }
   }
 }
