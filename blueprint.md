@@ -1,3 +1,4 @@
+
 # App Blueprint: Eerste Stapjes
 
 ## Overzicht
@@ -10,25 +11,19 @@ Eerste Stapjes is een mobiele applicatie gebouwd met Flutter, ontworpen om de gr
 
 ### Architectuur & Technologie
 
-- **Framework:** Flutter
-- **Backend:** Firebase
-  - **Authenticatie:** Firebase Auth (geïntegreerd met Google Sign-In).
-  - **Database:** Cloud Firestore voor het opslaan van profielgegevens, dagelijkse entries en metadata.
-  - **Opslag:** Firebase Storage voor het hosten van profielfoto's en dagelijkse uploads.
-- **State Management:** `provider` package.
-- **Navigatie:** Standaard Flutter `MaterialPageRoute` navigatie.
+-   **Framework:** Flutter
+-   **Backend:** Firebase (Authentication, Firestore, Storage)
+-   **State Management:** Provider
+-   **Authenticatie:** Google Sign-In.
+-   **Opslag:** Firebase Storage voor media, Firestore voor metadata.
 
-### Kernfunctionaliteiten
+### Kernfunctionaliteit
 
-1.  **Gebruikersauthenticatie & Accounts:**
-    - Veilige login via Google Sign-In.
-    - Gebruikers kunnen een accountnaam en profielfoto instellen en deze later wijzigen.
+-   **Gebruikersprofielen:** Aanmaken, bijwerken en verwijderen van kinderprofielen.
+-   **Fotogalerij:** Grid-weergave van alle geüploade foto's voor een profiel.
+-   **Dagelijkse Foto Upload:** Gebruikers kunnen een foto en beschrijving toevoegen als dagelijkse 'entry'. De app zorgt ervoor dat er maar één entry per dag mogelijk is door een oude entry automatisch te verwijderen bij het posten van een nieuwe op dezelfde dag.
 
-2.  **Profielbeheer & Rollen:**
-    - **Ouder/Verzorger (Eigenaar):** Kan kinderprofielen aanmaken, bewerken, verwijderen en delen via een unieke code.
-    - **Volger:** Kan een profiel volgen met de code en krijgt lees-toegang.
-
-3.  **Sociale Interactie:**
+### Sociale Interactie:
     - **Dagelijkse Momenten (Entries):** Eigenaren kunnen dagelijks een foto met beschrijving toevoegen.
     - **Likes:** Zowel eigenaren als volgers kunnen posts 'liken'.
     - **Reacties:** Gebruikers kunnen reageren op posts.
@@ -37,42 +32,42 @@ Eerste Stapjes is een mobiele applicatie gebouwd met Flutter, ontworpen om de gr
 
 ### User Interface (UI) & User Experience (UX)
 
-- **Design Stijl:** Material Design 3.
-- **Thema:** Ondersteuning voor lichte en donkere modus.
-- **Layout:** Diverse layout-problemen zijn opgelost voor een strakkere en professionelere uitstraling.
+-   **Design Stijl:** Material Design 3.
+-   **Thema:** Ondersteuning voor lichte en donkere modus.
+-   **Layout:** Diverse layout-problemen zijn opgelost voor een strakkere en professionelere uitstraling.
+
+---
+
+## Volgende Stap: Notificaties
+
+- **Doel:** Het implementeren van push notificaties om gebruikers te informeren over interacties zoals nieuwe volgers, likes en reacties.
 
 ---
 
 ## Huidig Plan: Beheerfunctionaliteit voor Reacties en Posts
 
-- **Status:** Implementatie.
-- **Doel:** Gebruikers meer controle geven over hun eigen content door bewerk- en verwijderopties toe te voegen voor reacties en posts.
+-   **Status:** Implementatie.
+-   **Doel:** Gebruikers meer controle geven over hun eigen content door bewerk- en verwijderopties toe te voegen voor reacties en posts.
 
 ### Fase 1: Reactiebeheer (Bewerken & Verwijderen)
 
-1.  **UI Aanpassingen (`photo_detail_screen.dart`):**
-    -   Bij elke reactie wordt een contextmenu (icoon met drie puntjes) toegevoegd.
-    -   Dit menu is **alleen zichtbaar** als de ingelogde gebruiker de auteur van de reactie is.
-    -   Het menu bevat de opties "Bewerken" en "Verwijderen".
-2.  **Logica in `ProfileProvider`:**
-    -   `deleteComment(profileId, entryDate, commentId)`: Implementeren van een functie die het specifieke commentaar-document uit de subcollectie in Firestore verwijdert.
-    -   `updateComment(profileId, entryDate, commentId, newText)`: Implementeren van een functie die de tekst van een bestaand commentaar bijwerkt.
-3.  **Dialogen voor Interactie:**
-    -   Een `AlertDialog` tonen om de gebruiker te vragen de verwijdering te bevestigen.
-    -   Een dialoog met een `TextField` tonen waarin de gebruiker zijn reactie kan bewerken.
+-   **UI-elementen:**
+    -   Een `bottomSheet` wordt getoond bij het lang indrukken van een eigen reactie.
+    -   Opties in het menu: "Bewerken" en "Verwijderen".
+-   **Logica:**
+    -   **Bewerken:** Toont een `AlertDialog` met de huidige reactietekst, die de gebruiker kan aanpassen en opslaan.
+    -   **Verwijderen:** Toont een bevestigingsdialoog voordat de reactie definitief uit Firestore wordt verwijderd.
 
-### Fase 2: Posts Verwijderen
+### Fase 2: Postbeheer (Verwijderen)
 
-1.  **UI Aanpassing (`photo_detail_screen.dart`):**
-    -   Een prullenbak-icoon wordt toegevoegd aan de `AppBar` van het detailscherm.
-    -   Dit icoon is **alleen zichtbaar** als de ingelogde gebruiker de eigenaar van het profiel is.
-2.  **Logica in `ProfileProvider`:**
-    -   `deleteDailyEntry(profileId, entryDate)`: Creëren van een robuuste functie die de volgende stappen uitvoert:
-        1.  **Subcollecties verwijderen:** Alle documenten in de `comments` subcollectie van de `daily_entry` worden verwijderd.
-        2.  **Foto verwijderen:** De bijbehorende foto wordt uit Firebase Storage verwijderd met `refFromURL().delete()`.
-        3.  **Hoofddocument verwijderen:** Het `daily_entry` document zelf wordt verwijderd, waarmee de beschrijving, likes, en favorieten-lijsten ook verdwijnen.
+-   **UI-elementen:**
+    -   Een `PopupMenuButton` (drie puntjes) wordt toegevoegd aan elke post in de `PhotoGrid`.
+    -   De optie "Verwijderen" wordt alleen getoond als de ingelogde gebruiker de eigenaar van de post is.
+-   **Logica:**
+    -   Bij selectie wordt de `deleteDailyEntry` functie aangeroepen.
+    -   Deze functie verwijdert zowel de foto uit Firebase Storage als het bijbehorende document uit Firestore.
 
-### Fase 3: Schone Lei bij Nieuwe Upload
+### Implementatiedetails
 
 1.  **Logica aanpassen in `ProfileProvider`:**
     -   De bestaande `addPhotoToProfile` functie wordt aangepast.
