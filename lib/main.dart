@@ -1,18 +1,20 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/date_symbol_data_local.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:provider/provider.dart';
+import 'package:workmanager/workmanager.dart';
 
 import 'firebase_options.dart';
-import 'screens/profile_selection_screen.dart';
-import 'screens/login_screen.dart';
-import 'screens/create_account_screen.dart';
-import 'providers/theme_provider.dart';
 import 'providers/profile_provider.dart';
+import 'providers/theme_provider.dart';
+import 'screens/create_account_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/profile_selection_screen.dart';
+import 'services/notification_service.dart';
 import 'theme.dart';
 
 // Top-level function to handle background messages
@@ -20,6 +22,49 @@ import 'theme.dart';
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   print("Handling a background message: ${message.messageId}");
+}
+
+@pragma('vm:entry-point')
+void callbackDispatcher() {
+  Workmanager().executeTask((task, inputData) async {
+    if (task == 'dailyPhotoReminder') {
+      // Initialize services
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      final NotificationService notificationService = NotificationService();
+      await notificationService.init();
+
+      // Check if user is logged in
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        return Future.value(true);
+      }
+
+      // Check if a photo was uploaded today
+      final now = DateTime.now();
+      final startOfToday = DateTime(now.year, now.month, now.day);
+      final endOfToday = startOfToday.add(const Duration(days: 1));
+
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('photos')
+          .where('uploaderId', isEqualTo: user.uid)
+          .where('createdAt', isGreaterThanOrEqualTo: startOfToday)
+          .where('createdAt', isLessThan: endOfToday)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        // No photo uploaded today, send notification
+        await notificationService.showNotification(
+          0, // Notification ID
+          'Vergeet je foto niet!',
+          'Je hebt vandaag nog geen foto geüpload voor je eerste stapjes.',
+        );
+      }
+    }
+    return Future.value(true);
+  });
 }
 
 // Initialize notifications
@@ -53,7 +98,6 @@ Future<void> initNotifications() async {
     }
   });
 
-
   // Initialize flutter_local_notifications
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
@@ -79,7 +123,6 @@ Future<void> initNotifications() async {
     AndroidNotification? android = message.notification?.android;
 
     if (notification != null && android != null) {
-
       final int id = notification.hashCode;
       final String? title = notification.title;
       final String? body = notification.body;
@@ -107,7 +150,6 @@ Future<void> initNotifications() async {
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 }
 
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
@@ -115,6 +157,22 @@ void main() async {
   );
   await initNotifications(); // Initialize notifications
   await initializeDateFormatting('nl_NL', null);
+
+  // Initialize Workmanager
+  Workmanager().initialize(
+    callbackDispatcher,
+    isInDebugMode: true, // Set to false for production
+  );
+
+  // Register the daily task
+  Workmanager().registerPeriodicTask(
+    '1',
+    'dailyPhotoReminder',
+    frequency: const Duration(hours: 24),
+  );
+
+  await NotificationService().init();
+
   runApp(const MyApp());
 }
 
