@@ -2,21 +2,118 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
 import 'firebase_options.dart';
 import 'screens/profile_selection_screen.dart';
 import 'screens/login_screen.dart';
-import 'screens/create_account_screen.dart'; // Import het nieuwe scherm
+import 'screens/create_account_screen.dart';
 import 'providers/theme_provider.dart';
 import 'providers/profile_provider.dart';
 import 'theme.dart';
+
+// Top-level function to handle background messages
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  print("Handling a background message: ${message.messageId}");
+}
+
+// Initialize notifications
+Future<void> initNotifications() async {
+  final FirebaseMessaging firebaseMessaging = FirebaseMessaging.instance;
+
+  // Request permissions
+  NotificationSettings settings = await firebaseMessaging.requestPermission(
+    alert: true,
+    announcement: false,
+    badge: true,
+    carPlay: false,
+    criticalAlert: false,
+    provisional: false,
+    sound: true,
+  );
+
+  print('User granted permission: ${settings.authorizationStatus}');
+
+  // Get FCM token and save it to Firestore
+  final String? token = await firebaseMessaging.getToken();
+  print("Firebase Messaging Token: $token");
+
+  // Save the token to the user's document in Firestore when the user is logged in
+  FirebaseAuth.instance.authStateChanges().listen((User? user) {
+    if (user != null && token != null) {
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .set({'fcmToken': token}, SetOptions(merge: true));
+    }
+  });
+
+
+  // Initialize flutter_local_notifications
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+
+  // Create a high importance channel for Android
+  const AndroidNotificationChannel channel = AndroidNotificationChannel(
+    'high_importance_channel', // id
+    'High Importance Notifications', // title
+    description: 'This channel is used for important notifications.', // description
+    importance: Importance.max,
+  );
+
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(channel);
+
+  // Handle foreground messages
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    print('Got a message whilst in the foreground!');
+    print('Message data: ${message.data}');
+
+    RemoteNotification? notification = message.notification;
+    AndroidNotification? android = message.notification?.android;
+
+    if (notification != null && android != null) {
+
+      final int id = notification.hashCode;
+      final String? title = notification.title;
+      final String? body = notification.body;
+
+      final NotificationDetails notificationDetails = NotificationDetails(
+        android: AndroidNotificationDetails(
+          channel.id,
+          channel.name,
+          channelDescription: channel.description,
+        ),
+      );
+
+      if (title != null && body != null) {
+        flutterLocalNotificationsPlugin.show(
+          id,
+          title,
+          body,
+          notificationDetails,
+        );
+      }
+    }
+  });
+
+  // Set the background messaging handler
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+}
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await initNotifications(); // Initialize notifications
   await initializeDateFormatting('nl_NL', null);
   runApp(const MyApp());
 }
