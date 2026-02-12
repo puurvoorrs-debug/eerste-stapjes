@@ -116,16 +116,16 @@ class _PhotoDetailScreenState extends State<PhotoDetailScreen> {
                           if (_currentUser != null)
                             IconButton(
                               icon: Icon(
-                                entry.isFavoritedBy(_currentUser!.uid) ? Icons.star : Icons.star_border,
-                                color: entry.isFavoritedBy(_currentUser!.uid) ? Colors.amber : null,
+                                entry.isFavoritedBy(_currentUser.uid) ? Icons.star : Icons.star_border,
+                                color: entry.isFavoritedBy(_currentUser.uid) ? Colors.amber : null,
                               ),
                               onPressed: () => Provider.of<ProfileProvider>(context, listen: false).toggleFavorite(widget.profile.id!, widget.date),
                             ),
                           if (_currentUser != null)
                              IconButton(
                               icon: Icon(
-                                entry.isLikedBy(_currentUser!.uid) ? Icons.favorite : Icons.favorite_border,
-                                color: entry.isLikedBy(_currentUser!.uid) ? Colors.red : null,
+                                entry.isLikedBy(_currentUser.uid) ? Icons.favorite : Icons.favorite_border,
+                                color: entry.isLikedBy(_currentUser.uid) ? Colors.red : null,
                               ),
                               onPressed: () => Provider.of<ProfileProvider>(context, listen: false).toggleLike(widget.profile.id!, widget.date),
                             ),

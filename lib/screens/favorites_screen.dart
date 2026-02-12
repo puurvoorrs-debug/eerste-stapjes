@@ -23,7 +23,7 @@ class FavoritesScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Mijn Favorieten', style: const TextStyle(fontFamily: 'Pacifico', fontSize: 22)),
+        title: const Text('Mijn Favorieten', style: TextStyle(fontFamily: 'Pacifico', fontSize: 22)),
       ),
       body: favoriteEntries.isEmpty
           ? const Center(

@@ -11,7 +11,7 @@ Eerste Stapjes is een mobiele applicatie gebouwd met Flutter, ontworpen om de gr
 ### Architectuur & Technologie
 
 -   **Framework:** Flutter
--   **Backend:** Firebase (Authentication, Firestore, Storage)
+-   **Backend:** Firebase (Authentication, Firestore, Storage, Cloud Functions)
 -   **State Management:** Provider
 -   **Authenticatie:** Google Sign-In.
 -   **Opslag:** Firebase Storage voor media, Firestore voor metadata.
@@ -30,9 +30,11 @@ Eerste Stapjes is een mobiele applicatie gebouwd met Flutter, ontworpen om de gr
     - **Volgerslijst:** Eigenaren kunnen zien wie hun profielen volgt.
 
 ### Notificaties & Achtergrondtaken
--   **Dagelijkse Herinnering:** De app voert dagelijks een achtergrondtaak uit met `workmanager`.
--   **Logica:** Deze taak controleert of de ingelogde gebruiker die dag al een foto heeft geüpload.
--   **Push Notificatie:** Als er geen foto is gevonden, wordt er een lokale notificatie verstuurd met de herinnering: "Vergeet je foto niet!".
+-   **Push Notificaties (Cloud Functions):** Firebase Cloud Functions worden gebruikt om pushnotificaties te versturen voor:
+    - Nieuwe volgers.
+    - Nieuwe foto's geplaatst door gevolgde profielen.
+    - Likes en reacties op eigen foto's.
+-   **Dagelijkse Herinnering (Cloud Functions):** Een dagelijkse, geplande Cloud Functie controleert of er een foto is geplaatst en stuurt een herinnering indien nodig.
 
 ### User Interface (UI) & User Experience (UX)
 
@@ -42,29 +44,14 @@ Eerste Stapjes is een mobiele applicatie gebouwd met Flutter, ontworpen om de gr
 
 ---
 
-## Huidig Plan: Dagelijkse Notificaties & APK Build
+## Recent Bugfixes: Uploads & Notificaties
 
 -   **Status:** Voltooid.
--   **Doel:** Een achtergrondtaak implementeren die gebruikers dagelijks herinnert om een foto te uploaden en een productie-APK bouwen.
-
-### Implementatiestappen
-
-1.  **Dependencies Toevoegen:** `workmanager` en `flutter_local_notifications` toegevoegd aan `pubspec.yaml`.
-2.  **Notification Service:** Een `NotificationService` opgezet om de creatie en weergave van lokale notificaties te beheren.
-3.  **Workmanager Implementatie:**
-    -   Een `callbackDispatcher` top-level functie gedefinieerd die op de achtergrond wordt uitgevoerd.
-    -   Een periodieke taak (`dailyPhotoReminder`) geregistreerd die elke 24 uur wordt geactiveerd.
-    -   De taak controleert in Firestore of er voor de huidige gebruiker al een foto bestaat voor de huidige dag.
-    -   Indien nee, wordt de `NotificationService` aangeroepen om de herinnering te tonen.
-4.  **Native Android Configuratie:**
-    -   De `minSdkVersion` in `android/app/build.gradle.kts` verhoogd naar 23, een vereiste voor `workmanager`.
-    -   Kortstondig een custom `Application.kt` class toegevoegd. Dit veroorzaakte build-fouten door verouderde plugin-registratie methoden.
-5.  **Foutoplossing & Herstel:**
-    -   De build-fout geanalyseerd en de oorzaak (verouderde native code) geïdentificeerd.
-    -   De custom `Application.kt` en de bijbehorende referentie in `AndroidManifest.xml` verwijderd, terugvallend op de moderne, automatische plugin-registratie van Flutter.
-
-### Resultaat
-
--   **APK Gebouwd:** De `flutter build apk` opdracht is succesvol uitgevoerd.
--   **Installatiebestand:** Het productie-APK bestand is beschikbaar op `build/app/outputs/flutter-apk/app-release.apk`.
--   **Volgende Stap:** De app is technisch gereed voor distributie via de Google Play Store. Het uploaden en beheren van de release gebeurt via de Google Play Console.
+-   **Probleem:** Na een eerdere wijziging was het uploaden van foto's gebroken. Een poging dit te herstellen, zorgde er vervolgens voor dat de notificaties voor likes en reacties niet meer werkten, omdat de app-code en de Cloud Functies niet meer op één lijn zaten qua datastructuur (`profiles` vs `users` collectie).
+-   **Oplossing:**
+    1.  **Herstel App-code:** De Flutter-applicatiecode is volledig teruggezet naar een vorige, stabiele staat, waardoor het uploadprobleem direct werd verholpen.
+    2.  **Correctie Cloud Functies:** In plaats van de app opnieuw aan te passen, zijn de Cloud Functies in `functions/index.js` volledig herschreven.
+        *   Alle database-triggers luisteren nu naar de correcte `profiles` collectie.
+        *   De logica voor het afhandelen van nieuwe likes, reacties en het versturen van notificaties naar volgers is volledig afgestemd op de datastructuur die de app gebruikt.
+    3.  **Linting & Deployment:** De Cloud Functies zijn gelint, gecorrigeerd en succesvol opnieuw gedeployed, waardoor de backend nu synchroon loopt met de frontend.
+-   **Resultaat:** Zowel de foto-uploadfunctionaliteit als het notificatiesysteem voor sociale interacties (likes, comments) werken nu correct en betrouwbaar.

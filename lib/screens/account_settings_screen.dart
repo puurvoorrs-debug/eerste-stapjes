@@ -31,7 +31,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   Future<void> _loadUserData() async {
     if (_currentUser == null) return;
 
-    final userDoc = await FirebaseFirestore.instance.collection('users').doc(_currentUser!.uid).get();
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(_currentUser.uid).get();
     if (userDoc.exists) {
       setState(() {
         _currentUserModel = UserModel.fromDocument(userDoc);
@@ -67,13 +67,13 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
         final storageRef = FirebaseStorage.instance
             .ref()
             .child('user_profile_pictures')
-            .child(_currentUser!.uid)
+            .child(_currentUser.uid)
             .child(fileName);
         await storageRef.putFile(_imageFile!);
         photoUrl = await storageRef.getDownloadURL();
       }
 
-      await FirebaseFirestore.instance.collection('users').doc(_currentUser!.uid).update({
+      await FirebaseFirestore.instance.collection('users').doc(_currentUser.uid).update({
         'displayName': _nameController.text,
         'photoUrl': photoUrl,
       });

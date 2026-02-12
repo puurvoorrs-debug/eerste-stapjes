@@ -49,21 +49,21 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     });
 
     try {
-      String photoUrl = _currentUser?.photoURL ?? '';
+      String photoUrl = _currentUser.photoURL ?? '';
 
       // Als de gebruiker een nieuwe afbeelding heeft gekozen, upload deze dan
       if (_imageFile != null) {
         final storageRef = FirebaseStorage.instance
             .ref()
             .child('user_profile_pictures')
-            .child('${_currentUser!.uid}.jpg');
+            .child('${_currentUser.uid}.jpg');
         await storageRef.putFile(_imageFile!);
         photoUrl = await storageRef.getDownloadURL();
       }
 
       // Sla de gebruikersinformatie op in Firestore
-      await FirebaseFirestore.instance.collection('users').doc(_currentUser!.uid).set({
-        'uid': _currentUser!.uid,
+      await FirebaseFirestore.instance.collection('users').doc(_currentUser.uid).set({
+        'uid': _currentUser.uid,
         'displayName': _nameController.text,
         'photoUrl': photoUrl,
       });

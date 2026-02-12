@@ -120,7 +120,6 @@ class ProfileProvider with ChangeNotifier {
 
     final dailyEntriesSnapshot = await profileRef.collection('daily_entries').get();
     for (final doc in dailyEntriesSnapshot.docs) {
-        // Gebruik de nieuwe robuuste verwijderfunctie
         await deleteDailyEntry(profileId, DateTime.parse(doc.id));
     }
 
@@ -136,21 +135,18 @@ class ProfileProvider with ChangeNotifier {
     await profileRef.delete();
   }
 
-  // NIEUW: Robuuste functie om een dagelijkse post te verwijderen
   Future<void> deleteDailyEntry(String profileId, DateTime date) async {
     final dateString = date.toIso8601String().split('T').first;
     final entryRef = _firestore.collection('profiles').doc(profileId).collection('daily_entries').doc(dateString);
 
     final entryDoc = await entryRef.get();
-    if (!entryDoc.exists) return; // Post bestaat niet
+    if (!entryDoc.exists) return;
 
-    // 1. Verwijder alle reacties in de subcollectie
     final commentsSnapshot = await entryRef.collection('comments').get();
     for (final doc in commentsSnapshot.docs) {
       await doc.reference.delete();
     }
 
-    // 2. Verwijder de foto uit Firebase Storage
     final data = entryDoc.data();
     if (data != null && data['photoUrl'] != null) {
       try {
@@ -160,11 +156,9 @@ class ProfileProvider with ChangeNotifier {
       }
     }
 
-    // 3. Verwijder het hoofddocument
     await entryRef.delete();
   }
 
-  // AANGEPAST: Zorgt voor een schone lei bij het uploaden
   Future<void> addPhotoToProfile(String profileId, DateTime date, File imageFile, {String description = ''}) async {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -172,7 +166,6 @@ class ProfileProvider with ChangeNotifier {
     final dateString = date.toIso8601String().split('T').first;
     final entryRef = _firestore.collection('profiles').doc(profileId).collection('daily_entries').doc(dateString);
 
-    // Controleer of er al een post is en verwijder deze (schone lei)
     if ((await entryRef.get()).exists) {
       await deleteDailyEntry(profileId, date);
     }
@@ -258,18 +251,16 @@ class ProfileProvider with ChangeNotifier {
     await commentRef.set(newComment.toMap());
   }
 
-  // NIEUW: Reactie verwijderen
   Future<void> deleteComment(String profileId, DateTime date, String commentId) async {
     final dateString = date.toIso8601String().split('T').first;
     await _firestore.collection('profiles').doc(profileId).collection('daily_entries').doc(dateString).collection('comments').doc(commentId).delete();
   }
 
-  // NIEUW: Reactie bewerken
   Future<void> updateComment(String profileId, DateTime date, String commentId, String newText) async {
     final dateString = date.toIso8601String().split('T').first;
     await _firestore.collection('profiles').doc(profileId).collection('daily_entries').doc(dateString).collection('comments').doc(commentId).update({
       'commentText': newText,
-      'timestamp': FieldValue.serverTimestamp(), // Update timestamp on edit
+      'timestamp': FieldValue.serverTimestamp(),
     });
   }
 
