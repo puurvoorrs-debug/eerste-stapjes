@@ -8,17 +8,88 @@ import '../models/daily_entry.dart';
 import '../models/comment_model.dart';
 import '../providers/profile_provider.dart';
 
+// HOOFDWIDGET: BEHEERT DE PAGEVIEW
 class PhotoDetailScreen extends StatefulWidget {
   final Profile profile;
-  final DateTime date;
+  final Map<DateTime, DailyEntry> entries;
+  final DateTime initialDate;
 
-  const PhotoDetailScreen({super.key, required this.profile, required this.date});
+  const PhotoDetailScreen({
+    super.key,
+    required this.profile,
+    required this.entries,
+    required this.initialDate,
+  });
 
   @override
   _PhotoDetailScreenState createState() => _PhotoDetailScreenState();
 }
 
 class _PhotoDetailScreenState extends State<PhotoDetailScreen> {
+  late PageController _pageController;
+  late List<DateTime> _sortedDates;
+  int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // CORRECTIE: Sorteer de datums oplopend (oud naar nieuw)
+    _sortedDates = widget.entries.keys.toList()..sort((a, b) => a.compareTo(b));
+    
+    // Vind de index van de geselecteerde datum
+    _currentIndex = _sortedDates.indexWhere((d) => isSameDay(d, widget.initialDate));
+    if (_currentIndex == -1) _currentIndex = 0;
+
+    _pageController = PageController(initialPage: _currentIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PageView.builder(
+      controller: _pageController,
+      itemCount: _sortedDates.length,
+      itemBuilder: (context, index) {
+        final date = _sortedDates[index];
+        final entry = widget.entries[date];
+
+        if (entry == null) {
+          return const Scaffold(
+            body: Center(child: Text('Fout: Kon entry niet laden.')),
+          );
+        }
+
+        return _PhotoPage(
+          key: ValueKey(date),
+          profile: widget.profile,
+          date: date,
+        );
+      },
+    );
+  }
+
+   bool isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+}
+
+// PAGINA WIDGET: TOONT DE CONTENT VAN ÉÉN DAG (FOTO, REACTIES, ETC.)
+class _PhotoPage extends StatefulWidget {
+  final Profile profile;
+  final DateTime date;
+
+  const _PhotoPage({super.key, required this.profile, required this.date});
+
+  @override
+  __PhotoPageState createState() => __PhotoPageState();
+}
+
+class __PhotoPageState extends State<_PhotoPage> {
   final _commentController = TextEditingController();
   final User? _currentUser = FirebaseAuth.instance.currentUser;
 
@@ -32,22 +103,19 @@ class _PhotoDetailScreenState extends State<PhotoDetailScreen> {
   }
 
   void _postComment() {
-    if (_commentController.text.trim().isEmpty || _currentUser == null) {
-      return;
-    }
+    if (_commentController.text.trim().isEmpty || _currentUser == null) return;
     final provider = Provider.of<ProfileProvider>(context, listen: false);
     provider.addComment(widget.profile.id!, widget.date, _commentController.text.trim());
     _commentController.clear();
     FocusScope.of(context).unfocus();
   }
 
-  // NIEUW: Functie om de hele post te verwijderen
   void _deletePost() async {
     final bool? confirmed = await showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Post Verwijderen?'),
-        content: const Text('Weet je zeker dat je deze post wilt verwijderen? Alle foto\'s, reacties en likes gaan verloren. Deze actie kan niet ongedaan worden gemaakt.'),
+        content: const Text('Weet je zeker dat je deze post wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.'),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Annuleren')),
           TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Verwijderen', style: TextStyle(color: Colors.red))),
@@ -59,11 +127,11 @@ class _PhotoDetailScreenState extends State<PhotoDetailScreen> {
       try {
         await Provider.of<ProfileProvider>(context, listen: false).deleteDailyEntry(widget.profile.id!, widget.date);
         if (mounted) {
-            Navigator.of(context).pop(); // Ga terug naar het vorige scherm
+          Navigator.of(context).pop();
         }
       } catch (e) {
         if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fout bij verwijderen van post: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fout bij verwijderen: $e')));
         }
       }
     }
@@ -72,13 +140,12 @@ class _PhotoDetailScreenState extends State<PhotoDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final dateString = widget.date.toIso8601String().split('T').first;
-    final bool isOwner = _currentUser?.uid == widget.profile.ownerId;
+    final isOwner = _currentUser?.uid == widget.profile.ownerId;
 
     return Scaffold(
       appBar: AppBar(
         title: Text('Moment van ${DateFormat('d MMMM yyyy', 'nl_NL').format(widget.date)}'),
         actions: [
-          // NIEUW: Verwijderknop voor eigenaar
           if (isOwner)
             IconButton(
               icon: const Icon(Icons.delete_outline),
@@ -94,7 +161,7 @@ class _PhotoDetailScreenState extends State<PhotoDetailScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (!snapshot.hasData || !snapshot.data!.exists) {
-             return const Center(child: Text('Deze post bestaat niet meer.'));
+            return const Center(child: Text('Deze post bestaat niet meer of wordt geladen.'));
           }
           final entry = DailyEntry.fromMap(snapshot.data!.data() as Map<String, dynamic>);
 
@@ -122,15 +189,15 @@ class _PhotoDetailScreenState extends State<PhotoDetailScreen> {
                               onPressed: () => Provider.of<ProfileProvider>(context, listen: false).toggleFavorite(widget.profile.id!, widget.date),
                             ),
                           if (_currentUser != null)
-                             IconButton(
+                            IconButton(
                               icon: Icon(
                                 entry.isLikedBy(_currentUser.uid) ? Icons.favorite : Icons.favorite_border,
                                 color: entry.isLikedBy(_currentUser.uid) ? Colors.red : null,
                               ),
                               onPressed: () => Provider.of<ProfileProvider>(context, listen: false).toggleLike(widget.profile.id!, widget.date),
                             ),
-                           const SizedBox(width: 8),
-                           Text('${entry.likes.length} ${entry.likes.length == 1 ? 'like' : 'likes'}'),
+                          const SizedBox(width: 8),
+                          Text('${entry.likes.length} ${entry.likes.length == 1 ? 'like' : 'likes'}'),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -152,8 +219,7 @@ class _PhotoDetailScreenState extends State<PhotoDetailScreen> {
       ),
     );
   }
-
-  // NIEUW: Popup voor bewerken/verwijderen van reactie
+  
   void _showCommentOptions(CommentModel comment) {
     showModalBottomSheet(
       context: context,
@@ -182,7 +248,6 @@ class _PhotoDetailScreenState extends State<PhotoDetailScreen> {
     );
   }
 
-  // NIEUW: Dialoog voor bewerken van reactie
   void _showEditCommentDialog(CommentModel comment) {
     final editController = TextEditingController(text: comment.commentText);
     showDialog(
@@ -214,7 +279,6 @@ class _PhotoDetailScreenState extends State<PhotoDetailScreen> {
     );
   }
 
-  // NIEUW: Dialoog voor bevestigen van verwijderen van reactie
   void _showDeleteCommentDialog(CommentModel comment) {
     showDialog(
       context: context,
@@ -237,7 +301,6 @@ class _PhotoDetailScreenState extends State<PhotoDetailScreen> {
       },
     );
   }
-
 
   Widget _buildCommentsList() {
     return StreamBuilder<QuerySnapshot>(

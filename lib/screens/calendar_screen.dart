@@ -15,7 +15,7 @@ import '../providers/theme_provider.dart';
 import 'favorites_screen.dart';
 import 'create_profile_screen.dart';
 import 'photo_detail_screen.dart';
-import 'followers_screen.dart'; 
+import 'followers_screen.dart';
 import 'dart:developer' as developer;
 
 class CalendarScreen extends StatefulWidget {
@@ -46,7 +46,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
     if (widget.profile.id == null) return;
 
     _entriesSubscription = FirebaseFirestore.instance
-        .collection('profiles').doc(widget.profile.id!)
+        .collection('profiles')
+        .doc(widget.profile.id!)
         .collection('daily_entries')
         .snapshots()
         .listen((snapshot) {
@@ -100,7 +101,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Annuleren')),
           ElevatedButton(
             onPressed: () {
-               Navigator.of(context).pop(descriptionController.text);
+              Navigator.of(context).pop(descriptionController.text);
             },
             child: const Text('Opslaan'),
           ),
@@ -131,18 +132,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return entry != null ? [entry] : [];
   }
 
-  // GECORRIGEERD: Gebruikt nu het volledige profielobject
-  void _navigateToDetailScreen(DailyEntry entry) {
-     if (_selectedDay == null) return;
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => PhotoDetailScreen(
-            profile: widget.profile,
-            date: _selectedDay!,
-          ),
+  void _navigateToDetailScreen() {
+    if (_selectedDay == null || _entries.isEmpty) return;
+
+    final validEntries = Map<DateTime, DailyEntry>.from(_entries)..removeWhere((key, value) => value == null);
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PhotoDetailScreen(
+          profile: widget.profile,
+          entries: validEntries,
+          initialDate: _selectedDay!,
         ),
-      );
+      ),
+    );
   }
 
   @override
@@ -177,7 +181,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     );
                   },
                 ),
-               if (isOwner && profile.shareCode != null)
+              if (isOwner && profile.shareCode != null)
                 IconButton(
                   icon: const Icon(Icons.share),
                   tooltip: 'Deel Profiel',
@@ -204,7 +208,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => CreateProfileScreen(profile: profile)),
-                    ).then((_) => setState((){}));
+                    ).then((_) => setState(() {}));
                   },
                 ),
               IconButton(
@@ -217,7 +221,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             padding: const EdgeInsets.all(12.0),
             child: Column(
               children: [
-                 Container(
+                Container(
                   decoration: BoxDecoration(
                     color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(16),
@@ -241,7 +245,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       formatButtonVisible: false,
                     ),
                     calendarStyle: CalendarStyle(
-                       todayDecoration: BoxDecoration(
+                      todayDecoration: BoxDecoration(
                         color: Theme.of(context).primaryColor.withAlpha(128),
                         shape: BoxShape.circle,
                       ),
@@ -250,20 +254,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         shape: BoxShape.circle,
                       ),
                     ),
-                     calendarBuilders: CalendarBuilders(
+                    calendarBuilders: CalendarBuilders(
                       markerBuilder: (context, date, events) {
-                         if (events.isEmpty || currentUser == null) return null;
+                        if (events.isEmpty || currentUser == null) return null;
                         final entry = events.first as DailyEntry;
                         final bool isFavorited = entry.isFavoritedBy(currentUser.uid);
 
                         return Center(
                           child: Stack(
                             alignment: Alignment.center,
-                             children: [
-                               Container(
+                            children: [
+                              Container(
                                 decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.amber.withAlpha(178), width: 1.5)),
-                                 width: 30,
-                                 height: 30,
+                                width: 30,
+                                height: 30,
                               ),
                               if (isFavorited)
                                 const Positioned(
@@ -279,23 +283,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ),
                 ),
                 const SizedBox(height: 30),
-                 Text(
-                  _selectedDay != null
-                      ? 'Moment van ${DateFormat('d MMMM yyyy', 'nl_NL').format(_selectedDay!)}'
-                      : 'Kies een dag',
+                Text(
+                  _selectedDay != null ? 'Moment van ${DateFormat('d MMMM yyyy', 'nl_NL').format(_selectedDay!)}' : 'Kies een dag',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 15),
                 GestureDetector(
-                   onTap: () {
-                      if (dailyEntry != null) {
-                        _navigateToDetailScreen(dailyEntry);
-                      }
-                   },
-                   child: Stack(
+                  onTap: () {
+                    if (dailyEntry != null) {
+                      _navigateToDetailScreen();
+                    }
+                  },
+                  child: Stack(
                     children: [
                       Container(
-                         height: 350,
+                        height: 350,
                         width: double.infinity,
                         decoration: BoxDecoration(
                           color: Theme.of(context).cardColor,
@@ -307,15 +309,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(16),
                                   child: Image.network(
-                                      dailyEntry.photoUrl,
-                                      fit: BoxFit.cover,
-                                      loadingBuilder: (context, child, progress) {
-                                        return progress == null ? child : const Center(child: CircularProgressIndicator());
-                                      },
-                                      errorBuilder: (context, error, stack) => const Center(child: Icon(Icons.error, color: Colors.red, size: 50)),
-                                    ),
+                                    dailyEntry.photoUrl,
+                                    fit: BoxFit.cover,
+                                    loadingBuilder: (context, child, progress) {
+                                      return progress == null ? child : const Center(child: CircularProgressIndicator());
+                                    },
+                                    errorBuilder: (context, error, stack) => const Center(child: Icon(Icons.error, color: Colors.red, size: 50)),
+                                  ),
                                 ),
-                            )
+                              )
                             : Center(
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -330,10 +332,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                 ),
                               ),
                       ),
-                      if (dailyEntry != null) // Toon een 'bekijk meer' icoon
+                      if (dailyEntry != null)
                         Positioned.fill(
                           child: Container(
-                             decoration: BoxDecoration(
+                            decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(16),
                               color: Colors.black.withOpacity(0.2),
                             ),
@@ -345,17 +347,84 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 20),
+                if (dailyEntry != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16.0),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (dailyEntry.description.isNotEmpty)
+                            Text(
+                              dailyEntry.description,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            )
+                          else
+                             Text(
+                                'Geen beschrijving toegevoegd.',
+                                style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(153)),
+                              ),
+                          const Divider(height: 20),
+                          _buildStatsRow(dailyEntry), // NIEUW: Stats rij
+                        ],
+                      ),
+                    ),
+                  ),
                 const SizedBox(height: 90),
               ],
             ),
           ),
-          floatingActionButton: isOwner ? FloatingActionButton(
-            tooltip: 'Foto toevoegen',
-            onPressed: _showAddPhotoDialog, 
-            child: const Icon(Icons.camera_alt),
-          ) : null,
+          floatingActionButton: isOwner
+              ? FloatingActionButton(
+                  tooltip: 'Foto toevoegen',
+                  onPressed: _showAddPhotoDialog,
+                  child: const Icon(Icons.camera_alt),
+                )
+              : null,
         );
       },
+    );
+  }
+
+  // NIEUW: Widget voor de statistieken rij (likes en comments)
+  Widget _buildStatsRow(DailyEntry dailyEntry) {
+    final dateString = _selectedDay!.toIso8601String().split('T').first;
+    final commentsStream = FirebaseFirestore.instance
+        .collection('profiles')
+        .doc(widget.profile.id)
+        .collection('daily_entries')
+        .doc(dateString)
+        .collection('comments')
+        .snapshots();
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        Icon(Icons.favorite, color: Colors.red[300], size: 18),
+        const SizedBox(width: 4),
+        Text('${dailyEntry.likes.length}'),
+        const SizedBox(width: 16),
+        StreamBuilder<QuerySnapshot>(
+          stream: commentsStream,
+          builder: (context, snapshot) {
+            final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
+            return Row(
+              children: [
+                Icon(Icons.comment, color: Colors.grey[600], size: 18),
+                const SizedBox(width: 4),
+                Text('$count'),
+              ],
+            );
+          },
+        ),
+      ],
     );
   }
 }

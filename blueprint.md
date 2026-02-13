@@ -55,3 +55,31 @@ Eerste Stapjes is een mobiele applicatie gebouwd met Flutter, ontworpen om de gr
 -   **Status:** Voltooid.
 -   **Probleem:** De release-versie van de Android-app crashte bij het inloggen met Google, omdat de SHA-1 en SHA-256-fingerprints van de release-keystore niet waren toegevoegd aan het Firebase-project.
 -   **Oplossing:** Er is een nieuwe `upload-keystore.jks` gegenereerd en de build-configuratie is aangepast. De correcte SHA-fingerprints zijn toegevoegd aan Firebase, waarna de app opnieuw is gebouwd.
+-   **Status:** Voltooid.
+-   **Probleem:** De `flutter build apk --release` commando faalde door een type-fout. Een `Map<dynamic, dynamic>` werd doorgegeven waar een `Map<DateTime, DailyEntry>` verwacht werd.
+-   **Oplossing:** Het type is expliciet gecast naar `Map<DateTime, DailyEntry>` bij het doorgeven van de data, wat de build-fout heeft opgelost.
+
+---
+
+## Huidige Taak: Verfijnen Kalender & Fotoweergave
+
+### Doel
+
+De gebruikerservaring van de kalender en de fotodetailweergave verder verbeteren door de navigatielogica te corrigeren en meer context te bieden.
+
+### Plan van Aanpak
+
+1.  **Swipe-logica corrigeren:**
+    *   Pas `photo_detail_screen.dart` aan.
+    *   Keer de sorteervolgorde van de datums om. Sorteer de datums **oplopend** (oud naar nieuw) in plaats van aflopend. Dit zorgt ervoor dat swipen van links naar rechts naar de *vorige* dag gaat (lagere index) en van rechts naar links naar de *volgende* dag (hogere index), wat een meer natuurlijke gebruikerservaring is.
+
+2.  **Likes- en Commentaartellers toevoegen:**
+    *   Pas `calendar_screen.dart` aan.
+    *   Voeg in de `Container` waar de beschrijving wordt getoond, een `Row` toe.
+    *   Deze `Row` zal twee iconen met tekst bevatten: één voor het aantal likes (`Icons.favorite`) en één voor het aantal reacties (`Icons.comment`).
+    *   De like-teller is direct beschikbaar (`dailyEntry.likes.length`).
+    *   Voor de commentaar-teller wordt een `StreamBuilder` gebruikt die luistert naar de `comments` subcollectie van de geselecteerde dag om de telling in real-time op te halen.
+
+3.  **Testen:**
+    *   Verifieer dat de swipe-richting in de fotodetailweergave nu correct en intuïtief is.
+    *   Controleer of het aantal likes en reacties correct wordt weergegeven op het kalenderscherm en of de reactieteller live wordt bijgewerkt wanneer een nieuwe reactie wordt geplaatst.
