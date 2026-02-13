@@ -68,6 +68,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
+  // NIEUW: Logica om swipe te verwerken
+  void _handleHorizontalSwipe(DragEndDetails details) {
+    if (details.primaryVelocity == 0 || _selectedDay == null || _entries.isEmpty) return;
+
+    final sortedDates = _entries.keys.toList()..sort((a, b) => a.compareTo(b));
+    final currentIndex = sortedDates.indexWhere((d) => isSameDay(d, _selectedDay!));
+
+    if (currentIndex == -1) return; // Geen entry voor de geselecteerde dag
+
+    int newIndex = currentIndex;
+    if (details.primaryVelocity! < 0) { // Swipe naar links (volgende)
+      newIndex = (currentIndex + 1).clamp(0, sortedDates.length - 1);
+    } else if (details.primaryVelocity! > 0) { // Swipe naar rechts (vorige)
+      newIndex = (currentIndex - 1).clamp(0, sortedDates.length - 1);
+    }
+
+    if (newIndex != currentIndex) {
+      final newDate = sortedDates[newIndex];
+      setState(() {
+        _selectedDay = newDate;
+        _focusedDay = newDate; // Focus de kalender ook op de nieuwe dag
+      });
+    }
+  }
+
   Future<void> _showAddPhotoDialog() async {
     if (_selectedDay == null || widget.profile.id == null) return;
 
@@ -288,95 +313,103 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 15),
+                // NIEUW: GestureDetector om de swipe-actie te vangen
                 GestureDetector(
-                  onTap: () {
-                    if (dailyEntry != null) {
-                      _navigateToDetailScreen();
-                    }
-                  },
-                  child: Stack(
+                  onHorizontalDragEnd: _handleHorizontalSwipe,
+                  child: Column(
                     children: [
-                      Container(
-                        height: 350,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).cardColor,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: dailyEntry != null
-                            ? Hero(
-                                tag: 'photo_${_selectedDay!.toIso8601String().split('T').first}',
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(16),
-                                  child: Image.network(
-                                    dailyEntry.photoUrl,
-                                    fit: BoxFit.cover,
-                                    loadingBuilder: (context, child, progress) {
-                                      return progress == null ? child : const Center(child: CircularProgressIndicator());
-                                    },
-                                    errorBuilder: (context, error, stack) => const Center(child: Icon(Icons.error, color: Colors.red, size: 50)),
+                      GestureDetector(
+                        onTap: () {
+                          if (dailyEntry != null) {
+                            _navigateToDetailScreen();
+                          }
+                        },
+                        child: Stack(
+                          children: [
+                            Container(
+                              height: 350,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).cardColor,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: dailyEntry != null
+                                  ? Hero(
+                                      tag: 'photo_${_selectedDay!.toIso8601String().split('T').first}',
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(16),
+                                        child: Image.network(
+                                          dailyEntry.photoUrl,
+                                          fit: BoxFit.cover,
+                                          loadingBuilder: (context, child, progress) {
+                                            return progress == null ? child : const Center(child: CircularProgressIndicator());
+                                          },
+                                          errorBuilder: (context, error, stack) => const Center(child: Icon(Icons.error, color: Colors.red, size: 50)),
+                                        ),
+                                      ),
+                                    )
+                                  : Center(
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.photo_library_outlined, color: Theme.of(context).colorScheme.onSurface.withAlpha(153), size: 60),
+                                          const SizedBox(height: 10),
+                                          Text(
+                                            'Geen foto voor deze dag',
+                                            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(153), fontSize: 16),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                            ),
+                            if (dailyEntry != null)
+                              Positioned.fill(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(16),
+                                    color: Colors.black.withOpacity(0.2),
+                                  ),
+                                  child: const Center(
+                                    child: Icon(Icons.zoom_in, color: Colors.white, size: 50, shadows: [Shadow(color: Colors.black54, blurRadius: 8)]),
                                   ),
                                 ),
-                              )
-                            : Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.photo_library_outlined, color: Theme.of(context).colorScheme.onSurface.withAlpha(153), size: 60),
-                                    const SizedBox(height: 10),
-                                    Text(
-                                      'Geen foto voor deze dag',
-                                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(153), fontSize: 16),
-                                    ),
-                                  ],
-                                ),
                               ),
+                          ],
+                        ),
                       ),
+                      const SizedBox(height: 20),
                       if (dailyEntry != null)
-                        Positioned.fill(
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4.0),
                           child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16.0),
                             decoration: BoxDecoration(
+                              color: Theme.of(context).cardColor,
                               borderRadius: BorderRadius.circular(16),
-                              color: Colors.black.withOpacity(0.2),
                             ),
-                            child: const Center(
-                              child: Icon(Icons.zoom_in, color: Colors.white, size: 50, shadows: [Shadow(color: Colors.black54, blurRadius: 8)]),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (dailyEntry.description.isNotEmpty)
+                                  Text(
+                                    dailyEntry.description,
+                                    style: Theme.of(context).textTheme.bodyMedium,
+                                  )
+                                else
+                                  Text(
+                                    'Geen beschrijving toegevoegd.',
+                                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(153)),
+                                  ),
+                                const Divider(height: 20),
+                                _buildStatsRow(dailyEntry),
+                              ],
                             ),
                           ),
                         ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
-                if (dailyEntry != null)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16.0),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).cardColor,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (dailyEntry.description.isNotEmpty)
-                            Text(
-                              dailyEntry.description,
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            )
-                          else
-                             Text(
-                                'Geen beschrijving toegevoegd.',
-                                style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(153)),
-                              ),
-                          const Divider(height: 20),
-                          _buildStatsRow(dailyEntry), // NIEUW: Stats rij
-                        ],
-                      ),
-                    ),
-                  ),
                 const SizedBox(height: 90),
               ],
             ),
@@ -393,7 +426,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  // NIEUW: Widget voor de statistieken rij (likes en comments)
   Widget _buildStatsRow(DailyEntry dailyEntry) {
     final dateString = _selectedDay!.toIso8601String().split('T').first;
     final commentsStream = FirebaseFirestore.instance

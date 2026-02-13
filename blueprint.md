@@ -61,25 +61,30 @@ Eerste Stapjes is een mobiele applicatie gebouwd met Flutter, ontworpen om de gr
 
 ---
 
-## Huidige Taak: Verfijnen Kalender & Fotoweergave
+## Huidige Taak: Swipe-navigatie op Kalenderscherm
 
 ### Doel
 
-De gebruikerservaring van de kalender en de fotodetailweergave verder verbeteren door de navigatielogica te corrigeren en meer context te bieden.
+De gebruiker in staat stellen om direct op het kalenderscherm door de dagen met foto's te navigeren door te swipen over het contentgedeelte (foto en beschrijving).
 
 ### Plan van Aanpak
 
-1.  **Swipe-logica corrigeren:**
-    *   Pas `photo_detail_screen.dart` aan.
-    *   Keer de sorteervolgorde van de datums om. Sorteer de datums **oplopend** (oud naar nieuw) in plaats van aflopend. Dit zorgt ervoor dat swipen van links naar rechts naar de *vorige* dag gaat (lagere index) en van rechts naar links naar de *volgende* dag (hogere index), wat een meer natuurlijke gebruikerservaring is.
+1.  **Implementeer `GestureDetector`:**
+    *   Pas `lib/screens/calendar_screen.dart` aan.
+    *   Wikkel de `Column` die de foto (`GestureDetector` met `Stack`) en de beschrijving (`Padding` met `Container`) bevat in een nieuwe `GestureDetector`.
+    *   Implementeer de `onHorizontalDragEnd`-callback om veegbewegingen te detecteren.
 
-2.  **Likes- en Commentaartellers toevoegen:**
-    *   Pas `calendar_screen.dart` aan.
-    *   Voeg in de `Container` waar de beschrijving wordt getoond, een `Row` toe.
-    *   Deze `Row` zal twee iconen met tekst bevatten: één voor het aantal likes (`Icons.favorite`) en één voor het aantal reacties (`Icons.comment`).
-    *   De like-teller is direct beschikbaar (`dailyEntry.likes.length`).
-    *   Voor de commentaar-teller wordt een `StreamBuilder` gebruikt die luistert naar de `comments` subcollectie van de geselecteerde dag om de telling in real-time op te halen.
+2.  **Voeg Swipe-logica toe:**
+    *   Creëer een nieuwe methode, bijvoorbeeld `_handleSwipe(DragEndDetails details)`.
+    *   **Bepaal swipe-richting:** Analyseer de `primaryVelocity` van de `DragEndDetails`. Een positieve snelheid betekent een swipe naar rechts (vorige dag), een negatieve snelheid betekent een swipe naar links (volgende dag).
+    *   **Vind volgende/vorige dag:**
+        *   Haal de gesorteerde lijst met datums op waarvoor een `entry` bestaat (`_entries.keys.toList()..sort()`).
+        *   Vind de huidige index van `_selectedDay` in deze lijst.
+        *   Bereken de nieuwe index door 1 op te tellen (links swipen) of af te trekken (rechts swipen).
+        *   Zorg ervoor dat de index binnen de grenzen van de lijst blijft.
+    *   **Update de state:** Roep `setState` aan om `_selectedDay` en `_focusedDay` bij te werken met de nieuwe datum uit de lijst. Dit zal de UI vernieuwen en de content van de nieuwe dag tonen.
 
 3.  **Testen:**
-    *   Verifieer dat de swipe-richting in de fotodetailweergave nu correct en intuïtief is.
-    *   Controleer of het aantal likes en reacties correct wordt weergegeven op het kalenderscherm en of de reactieteller live wordt bijgewerkt wanneer een nieuwe reactie wordt geplaatst.
+    *   Verifieer dat swipen naar links en rechts op het contentgedeelte van het kalenderscherm correct navigeert naar de volgende en vorige dag met een foto.
+    *   Controleer of de kalenderweergave zichzelf ook correct bijwerkt en de nieuwe geselecteerde dag markeert.
+    *   Test de randgevallen: wat gebeurt er als je op de eerste of laatste dag in de lijst swipet?
