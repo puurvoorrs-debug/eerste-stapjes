@@ -4,12 +4,39 @@ import 'package:provider/provider.dart';
 import '../providers/profile_provider.dart';
 import '../services/auth_service.dart';
 import '../models/profile.dart';
+import '../models/app_exception.dart'; // Importeer de custom exception
 import 'create_profile_screen.dart';
 import 'calendar_screen.dart';
-import 'account_settings_screen.dart'; // Importeer het nieuwe scherm
+import 'account_settings_screen.dart';
 
 class ProfileSelectionScreen extends StatelessWidget {
   const ProfileSelectionScreen({super.key});
+
+  void _showIncompleteProfileDialog(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Profiel Incompleet'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuleren'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context); // Sluit de huidige dialoog
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AccountSettingsScreen()),
+              );
+            },
+            child: const Text('Naar Instellingen'),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _showFollowDialog(BuildContext context) {
     final codeController = TextEditingController();
@@ -32,13 +59,27 @@ class ProfileSelectionScreen extends StatelessWidget {
           ),
           ElevatedButton(
             onPressed: () async {
-              final success = await profileProvider.followProfile(codeController.text);
-              if (context.mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text(success
-                        ? 'Je volgt nu dit profiel!'
-                        : 'Ongeldige code of je volgt dit profiel al.')));
+              try {
+                final success = await profileProvider.followProfile(codeController.text);
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text(success
+                          ? 'Je volgt nu dit profiel!'
+                          : 'Ongeldige code of je bent al eigenaar van dit profiel.')));
+                }
+              } on IncompleteProfileException catch (e) {
+                if (context.mounted) {
+                  Navigator.pop(context); // Sluit de volg-dialoog
+                  _showIncompleteProfileDialog(context, e.message); // Toon de nieuwe dialoog
+                }
+              } catch (e) {
+                 if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Er is een onbekende fout opgetreden.')),
+                  );
+                }
               }
             },
             child: const Text('Volgen'),
@@ -125,7 +166,6 @@ class ProfileSelectionScreen extends StatelessWidget {
               ],
             ),
           ),
-          // NIEUW: Knop voor accountinstellingen
           Positioned(
             top: 40,
             left: 10,
@@ -155,19 +195,19 @@ class ProfileSelectionScreen extends StatelessWidget {
 
   Widget _buildProfileSection(String title, List<Profile> profiles, BuildContext context, bool editable) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center, // Center title
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 16.0),
           child: Text(title, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
         ),
         Wrap(
-          spacing: 16.0, // Horizontal space between items
-          runSpacing: 16.0, // Vertical space between lines
+          spacing: 16.0,
+          runSpacing: 16.0,
           alignment: WrapAlignment.center,
           children: profiles.map((profile) => _buildProfileItem(context, profile, editable)).toList(),
         ),
-        const SizedBox(height: 20), // Add space after a section
+        const SizedBox(height: 20),
       ],
     );
   }
@@ -178,13 +218,13 @@ class ProfileSelectionScreen extends StatelessWidget {
         Navigator.push(context, MaterialPageRoute(builder: (context) => CalendarScreen(profile: profile)));
       },
       child: SizedBox(
-        width: 150, // Fixed width for each item
+        width: 150,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Stack(
               alignment: Alignment.bottomRight,
-              clipBehavior: Clip.none, // Allow edit button to overlap
+              clipBehavior: Clip.none,
               children: [
                 CircleAvatar(
                   radius: 60,
@@ -198,8 +238,8 @@ class ProfileSelectionScreen extends StatelessWidget {
                 ),
                 if (editable)
                   Positioned(
-                    right: -5, // Adjust position
-                    bottom: -5, // Adjust position
+                    right: -5,
+                    bottom: -5,
                     child: GestureDetector(
                       onTap: () {
                          Navigator.push(context, MaterialPageRoute(builder: (context) => CreateProfileScreen(profile: profile)));

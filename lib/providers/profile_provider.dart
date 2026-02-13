@@ -9,6 +9,7 @@ import '../models/profile.dart';
 import '../models/daily_entry.dart';
 import '../models/comment_model.dart';
 import '../models/user_model.dart';
+import '../models/app_exception.dart';
 
 class ProfileProvider with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -267,6 +268,20 @@ class ProfileProvider with ChangeNotifier {
   Future<bool> followProfile(String shareCode) async {
     final user = _auth.currentUser;
     if (user == null) return false;
+
+    final userDoc = await _firestore.collection('users').doc(user.uid).get();
+    if (!userDoc.exists) {
+      throw IncompleteProfileException('Gebruikersprofiel niet gevonden.');
+    }
+
+    final userData = userDoc.data()!;
+    final userName = userData['displayName'] as String?;
+    final photoUrl = userData['photoUrl'] as String?;
+
+    if (userName == null || userName.isEmpty || photoUrl == null || photoUrl.isEmpty) {
+      throw IncompleteProfileException(
+          'Update je profiel met een naam en foto om anderen te volgen.');
+    }
 
     final querySnapshot = await _firestore
         .collection('profiles')
