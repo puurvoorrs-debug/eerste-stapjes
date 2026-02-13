@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-
 import '../services/auth_service.dart';
-import '../providers/theme_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -45,7 +42,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     final authService = AuthService();
-    final themeProvider = Provider.of<ThemeProvider>(context);
+    final theme = Theme.of(context);
 
     return Scaffold(
       body: Center(
@@ -63,6 +60,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                       child: SvgPicture.asset(
                         'assets/images/logo_left_foot.svg',
                         height: 200,
+                        colorFilter: ColorFilter.mode(theme.primaryColor, BlendMode.srcIn),
                       ),
                     ),
                     FadeTransition(
@@ -70,16 +68,22 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                       child: SvgPicture.asset(
                         'assets/images/logo_right_foot.svg',
                         height: 200,
+                        colorFilter: ColorFilter.mode(theme.primaryColor, BlendMode.srcIn),
                       ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 'Eerste stapjes',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, fontFamily: 'Pacifico'),
+                style: TextStyle(
+                  fontSize: 28, 
+                  fontWeight: FontWeight.bold, 
+                  fontFamily: 'Pacifico',
+                  color: theme.primaryColor
+                  ),
               ),
               const SizedBox(height: 10),
               Text(
@@ -90,8 +94,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               const SizedBox(height: 50),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: themeProvider.isDarkMode ? Colors.white : Colors.black,
-                  foregroundColor: themeProvider.isDarkMode ? Colors.black : Colors.white,
+                  backgroundColor: theme.primaryColor,
+                  foregroundColor: Colors.white,
                   minimumSize: const Size(double.infinity, 50),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),

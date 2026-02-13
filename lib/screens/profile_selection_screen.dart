@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/profile_provider.dart';
 import '../services/auth_service.dart';
 import '../models/profile.dart';
-import '../models/app_exception.dart'; // Importeer de custom exception
+import '../models/app_exception.dart';
 import 'create_profile_screen.dart';
 import 'calendar_screen.dart';
 import 'account_settings_screen.dart';
@@ -25,7 +25,7 @@ class ProfileSelectionScreen extends StatelessWidget {
           ),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context); // Sluit de huidige dialoog
+              Navigator.pop(context);
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const AccountSettingsScreen()),
@@ -41,6 +41,7 @@ class ProfileSelectionScreen extends StatelessWidget {
   void _showFollowDialog(BuildContext context) {
     final codeController = TextEditingController();
     final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+    final theme = Theme.of(context);
 
     showDialog(
       context: context,
@@ -58,6 +59,9 @@ class ProfileSelectionScreen extends StatelessWidget {
             child: const Text('Annuleren'),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: theme.primaryColor,
+                foregroundColor: Colors.white),
             onPressed: () async {
               try {
                 final success = await profileProvider.followProfile(codeController.text);
@@ -70,8 +74,8 @@ class ProfileSelectionScreen extends StatelessWidget {
                 }
               } on IncompleteProfileException catch (e) {
                 if (context.mounted) {
-                  Navigator.pop(context); // Sluit de volg-dialoog
-                  _showIncompleteProfileDialog(context, e.message); // Toon de nieuwe dialoog
+                  Navigator.pop(context);
+                  _showIncompleteProfileDialog(context, e.message);
                 }
               } catch (e) {
                  if (context.mounted) {
@@ -93,6 +97,7 @@ class ProfileSelectionScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final authService = AuthService();
     final currentUser = FirebaseAuth.instance.currentUser;
+    final theme = Theme.of(context);
 
     return Scaffold(
       body: Stack(
@@ -154,12 +159,13 @@ class ProfileSelectionScreen extends StatelessWidget {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 30.0, top: 20.0),
+                  padding: const EdgeInsets.only(bottom: 30.0, top: 20.0, left: 20, right: 20),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                       _buildAddProfileButton(context),
-                       const SizedBox(height: 10),
-                       _buildFollowProfileButton(context),
+                       _buildAddProfileButton(context, theme),
+                       const SizedBox(height: 12),
+                       _buildFollowProfileButton(context, theme),
                     ],
                   ),
                 )
@@ -271,21 +277,36 @@ class ProfileSelectionScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAddProfileButton(BuildContext context) {
-    return TextButton.icon(
-      icon: const Icon(Icons.add_circle_outline, color: Colors.white70),
-      label: const Text('Nieuw profiel aanmaken', style: TextStyle(color: Colors.white70, fontSize: 16)),
+  Widget _buildAddProfileButton(BuildContext context, ThemeData theme) {
+    return ElevatedButton.icon(
+      icon: const Icon(Icons.add_circle_outline, color: Colors.white),
+      label: const Text('Nieuw profiel aanmaken'),
       onPressed: () {
         Navigator.push(context, MaterialPageRoute(builder: (context) => const CreateProfileScreen()));
       },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: theme.primaryColor,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      ),
     );
   }
 
-  Widget _buildFollowProfileButton(BuildContext context) {
-    return TextButton.icon(
-      icon: const Icon(Icons.group_add_outlined, color: Colors.white70),
-      label: const Text('Een profiel volgen', style: TextStyle(color: Colors.white70, fontSize: 16)),
+  Widget _buildFollowProfileButton(BuildContext context, ThemeData theme) {
+    return OutlinedButton.icon(
+      icon: Icon(Icons.group_add_outlined, color: theme.primaryColor),
+      label: const Text('Een profiel volgen'),
       onPressed: () => _showFollowDialog(context),
+      style: OutlinedButton.styleFrom(
+        backgroundColor: Colors.transparent,
+        foregroundColor: theme.primaryColor,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        side: BorderSide(color: theme.primaryColor, width: 2),
+        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      ),
     );
   }
 }
