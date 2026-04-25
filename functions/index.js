@@ -257,3 +257,77 @@ exports.sendNotificationOnNewLike = functions.firestore
         console.error("Error sending like notification:", error);
       }
     });
+
+// New Function: Notify owner on new download request and requester on approval
+exports.sendNotificationOnDownloadRequestUpdate = functions.firestore
+    .document("profiles/{profileId}/daily_entries/{entryId}")
+    .onUpdate(async (change, context) => {
+      const beforeData = change.before.data();
+      const afterData = change.after.data();
+
+      const beforeRequests = beforeData.downloadRequests || {};
+      const afterRequests = afterData.downloadRequests || {};
+
+      const profileId = context.params.profileId;
+      const entryId = context.params.entryId;
+
+      const profileDoc = await admin.firestore().collection("profiles").doc(profileId).get();
+      if (!profileDoc.exists) return;
+      const ownerId = profileDoc.data().ownerId;
+      const profileName = profileDoc.data().name || "een profiel";
+
+      // Detect new pending requests OR approved requests
+      for (const [userId, requestData] of Object.entries(afterRequests)) {
+        const beforeRequestData = beforeRequests[userId];
+        const status = requestData.status;
+        const name = requestData.name || "Iemand";
+
+        if ((!beforeRequestData || beforeRequestData.status !== "pending") && status === "pending") {
+          // New request -> Notify Owner
+          const ownerUserDoc = await admin.firestore().collection("users").doc(ownerId).get();
+          if (ownerUserDoc.exists && ownerUserDoc.data().fcmToken) {
+            const message = {
+              notification: {
+                title: "Download Aanvraag",
+                body: `${name} wil graag je foto van ${profileName} downloaden.`,
+              },
+              token: ownerUserDoc.data().fcmToken,
+              data: {
+                type: "download_request",
+                entryId: entryId,
+                profileId: profileId,
+              },
+            };
+            try {
+              await admin.messaging().send(message);
+              console.log(`Successfully sent download request notification to owner ${ownerId}.`);
+            } catch (e) {
+              console.error(e);
+            }
+          }
+        } else if (beforeRequestData && beforeRequestData.status === "pending" && status === "approved") {
+          // Approved request -> Notify Requester
+          const requesterUserDoc = await admin.firestore().collection("users").doc(userId).get();
+          if (requesterUserDoc.exists && requesterUserDoc.data().fcmToken) {
+             const message = {
+              notification: {
+                title: "Download Goedgekeurd!",
+                body: `Je downloadverzoek voor de foto van ${profileName} is goedgekeurd. Je kunt de foto nu downloaden.`,
+              },
+              token: requesterUserDoc.data().fcmToken,
+              data: {
+                type: "download_approved",
+                entryId: entryId,
+                profileId: profileId,
+              },
+            };
+            try {
+              await admin.messaging().send(message);
+              console.log(`Successfully sent download approval notification to user ${userId}.`);
+            } catch (e) {
+              console.error(e);
+            }
+          }
+        }
+      }
+    });

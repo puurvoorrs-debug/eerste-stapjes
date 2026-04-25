@@ -3,12 +3,14 @@ class DailyEntry {
   final String description;
   final List<String> favoritedBy; // Voor persoonlijke favorieten (ster-icoon)
   final List<String> likes;       // Voor openbare likes (hart-icoon)
+  final Map<String, dynamic> downloadRequests; // userId -> {status, name, timestamp}
 
   DailyEntry({
     required this.photoUrl,
     this.description = '',
     this.favoritedBy = const [],
     this.likes = const [],
+    this.downloadRequests = const {},
   });
 
   // Helper method om te checken of een specifieke gebruiker deze entry als favoriet heeft
@@ -29,6 +31,7 @@ class DailyEntry {
       description: map['description'] as String? ?? '',
       favoritedBy: favoritedByList.cast<String>().toList(),
       likes: likesList.cast<String>().toList(),
+      downloadRequests: Map<String, dynamic>.from(map['downloadRequests'] ?? {}),
     );
   }
 
@@ -38,6 +41,7 @@ class DailyEntry {
       'description': description,
       'favoritedBy': favoritedBy,
       'likes': likes,
+      'downloadRequests': downloadRequests,
     };
   }
 }

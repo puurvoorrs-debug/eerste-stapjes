@@ -1,0 +1,81 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Handige functies om code korter te maken
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function userId() {
+      return request.auth.uid;
+    }
+
+    // --- GEBRUIKERS (USERS) ---
+    match /users/{uid} {
+      // Iedereen mag elkaars naam en foto zien (nodig voor comments en profielen)
+      allow read: if isSignedIn();
+      // Je mag alleen je eigen account-gegevens aanpassen
+      allow write: if isSignedIn() && userId() == uid;
+    }
+
+    // --- KINDERPROFIELEN (PROFILES) ---
+    match /profiles/{profileId} {
+      // Lezen mag als je bent ingelogd (nodig zodat mensen via een share-code kunnen zoeken)
+      allow read: if isSignedIn();
+      
+      // Profiel aanmaken mag als jij de eigenaar wordt
+      allow create: if isSignedIn() && request.resource.data.ownerId == userId();
+      
+      // Updaten: De eigenaar mag alles updaten. 
+      // Anderen mogen ALLEEN zichzelf toevoegen aan/verwijderen uit de 'followers' lijst
+      allow update: if isSignedIn() && (
+        resource.data.ownerId == userId() || 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followers'])
+      );
+      
+      // Alleen de eigenaar mag het profiel verwijderen
+      allow delete: if isSignedIn() && resource.data.ownerId == userId();
+
+      // --- DAGELIJKSE FOTO'S (DAILY ENTRIES) ---
+      match /daily_entries/{dateString} {
+        // BELANGRIJK: Alleen de eigenaar én geaccepteerde volgers mogen de foto's en tekst zien!
+        allow read: if isSignedIn() && (
+          get(/databases/$(database)/documents/profiles/$(profileId)).data.ownerId == userId() ||
+          userId() in get(/databases/$(database)/documents/profiles/$(profileId)).data.followers
+        );
+        
+        // Alleen de eigenaar mag nieuwe foto's plaatsen of verwijderen
+        allow create, delete: if isSignedIn() && 
+          get(/databases/$(database)/documents/profiles/$(profileId)).data.ownerId == userId();
+          
+        // Updaten: Eigenaar mag alles. Volgers mogen ALLEEN een like, favoriet of downloadRequests toevoegen/weghalen.
+        allow update: if isSignedIn() && (
+          get(/databases/$(database)/documents/profiles/$(profileId)).data.ownerId == userId() ||
+          (
+            userId() in get(/databases/$(database)/documents/profiles/$(profileId)).data.followers &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'favoritedBy', 'downloadRequests'])
+          )
+        );
+
+        // --- REACTIES (COMMENTS) ---
+        match /comments/{commentId} {
+           // Zelfde beveiliging als bij foto's: alleen eigenaar en volgers
+           allow read: if isSignedIn() && (
+             get(/databases/$(database)/documents/profiles/$(profileId)).data.ownerId == userId() ||
+             userId() in get(/databases/$(database)/documents/profiles/$(profileId)).data.followers
+           );
+           
+           // Iedereen mag een comment plaatsen zolang het hun eigen userId bevat
+           allow create: if isSignedIn() && request.resource.data.userId == userId();
+           
+           // Updaten/Verwijderen mag alleen als jij de comment schreef óf als jij de baas van het profiel bent
+           allow update, delete: if isSignedIn() && (
+             resource.data.userId == userId() || 
+             get(/databases/$(database)/documents/profiles/$(profileId)).data.ownerId == userId()
+           );
+        }
+      }
+    }
+  }
+}

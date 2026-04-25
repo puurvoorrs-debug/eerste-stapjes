@@ -3,6 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:gal/gal.dart';
+import 'package:dio/dio.dart';
+import 'package:path_provider/path_provider.dart';
 import '../models/profile.dart';
 import '../models/daily_entry.dart';
 import '../models/comment_model.dart';
@@ -100,6 +103,134 @@ class __PhotoPageState extends State<_PhotoPage> {
         .doc(widget.profile.id)
         .collection('daily_entries')
         .doc(dateString);
+  }
+
+  bool _isDownloading = false;
+
+  Future<void> _downloadImage(String url) async {
+    setState(() => _isDownloading = true);
+    try {
+      // Controleer of we toegang hebben tot de galerij
+      bool hasAccess = await Gal.hasAccess();
+      if (!hasAccess) {
+        hasAccess = await Gal.requestAccess();
+      }
+
+      if (!hasAccess) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Geen toegang tot de galerij. Geef de app toestemming in de instellingen.')),
+          );
+        }
+        return;
+      }
+
+      final appDocDir = await getTemporaryDirectory();
+      final savePath = '${appDocDir.path}/temp_image.jpg';
+      await Dio().download(url, savePath);
+      await Gal.putImage(savePath);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Foto is opgeslagen in je galerij!')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fout bij downloaden: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isDownloading = false);
+      }
+    }
+  }
+
+  Widget _buildOwnerDownloadRequests(DailyEntry entry) {
+    if (entry.downloadRequests.isEmpty) return const SizedBox.shrink();
+
+    final pendingRequests = entry.downloadRequests.entries.where((e) => e.value['status'] == 'pending').toList();
+    if (pendingRequests.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Download Aanvragen', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: 8),
+          ...pendingRequests.map((req) {
+            final userId = req.key;
+            final name = req.value['name'] ?? 'Iemand';
+            return ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text('$name wil deze foto downloaden'),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.check_circle, color: Colors.green),
+                    onPressed: () => Provider.of<ProfileProvider>(context, listen: false).respondToDownloadRequest(widget.profile.id!, widget.date, userId, 'approved'),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.cancel, color: Colors.red),
+                    onPressed: () => Provider.of<ProfileProvider>(context, listen: false).respondToDownloadRequest(widget.profile.id!, widget.date, userId, 'rejected'),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFollowerDownloadSection(DailyEntry entry) {
+    if (_currentUser == null) return const SizedBox.shrink();
+    
+    final request = entry.downloadRequests[_currentUser!.uid];
+    final status = request != null ? request['status'] : null;
+
+    if (status == null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        child: ElevatedButton.icon(
+          icon: const Icon(Icons.file_download),
+          label: const Text('Download Aanvragen'),
+          onPressed: () => Provider.of<ProfileProvider>(context, listen: false).requestPhotoDownload(widget.profile.id!, widget.date),
+        ),
+      );
+    } else if (status == 'pending') {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        child: OutlinedButton.icon(
+          icon: const Icon(Icons.hourglass_empty),
+          label: const Text('Aanvraag in behandeling'),
+          onPressed: null,
+        ),
+      );
+    } else if (status == 'rejected') {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        child: OutlinedButton.icon(
+          icon: const Icon(Icons.cancel, color: Colors.red),
+          label: const Text('Aanvraag afgewezen', style: TextStyle(color: Colors.red)),
+          onPressed: null,
+        ),
+      );
+    } else if (status == 'approved') {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        child: ElevatedButton.icon(
+          icon: _isDownloading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.file_download),
+          label: Text(_isDownloading ? 'Downloaden...' : 'Download Foto'),
+          onPressed: _isDownloading ? null : () => _downloadImage(entry.photoUrl),
+        ),
+      );
+    }
+    return const SizedBox.shrink();
   }
 
   void _postComment() {
@@ -203,6 +334,11 @@ class __PhotoPageState extends State<_PhotoPage> {
                       const SizedBox(height: 12),
                       if (entry.description.isNotEmpty)
                         Text(entry.description, style: Theme.of(context).textTheme.bodyLarge),
+                      
+                      const SizedBox(height: 12),
+                      if (isOwner) _buildOwnerDownloadRequests(entry),
+                      if (!isOwner) _buildFollowerDownloadSection(entry),
+
                       const Divider(height: 30),
                       Text('Reacties', style: Theme.of(context).textTheme.titleLarge),
                       const SizedBox(height: 10),

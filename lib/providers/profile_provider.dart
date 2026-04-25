@@ -316,6 +316,41 @@ class ProfileProvider with ChangeNotifier {
     });
   }
 
+  Future<void> requestPhotoDownload(String profileId, DateTime date) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final userDoc = await _firestore.collection('users').doc(user.uid).get();
+    final name = userDoc.exists ? (userDoc.data()?['displayName'] ?? 'Iemand') : 'Iemand';
+
+    final dateString = date.toIso8601String().split('T').first;
+    final docRef = _firestore.collection('profiles').doc(profileId).collection('daily_entries').doc(dateString);
+
+    await docRef.set({
+      'downloadRequests': {
+        user.uid: {
+          'status': 'pending',
+          'name': name,
+          'timestamp': FieldValue.serverTimestamp(),
+        }
+      }
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> respondToDownloadRequest(String profileId, DateTime date, String userId, String status) async {
+    final dateString = date.toIso8601String().split('T').first;
+    final docRef = _firestore.collection('profiles').doc(profileId).collection('daily_entries').doc(dateString);
+
+    await docRef.set({
+      'downloadRequests': {
+        userId: {
+          'status': status,
+          'timestamp': FieldValue.serverTimestamp(),
+        }
+      }
+    }, SetOptions(merge: true));
+  }
+
   @override
   void dispose() {
     _profileSubscription?.cancel();
