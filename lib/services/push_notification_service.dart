@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -37,18 +38,21 @@ class PushNotificationService {
     developer.log(
         'Bericht afgehandeld (app gesloten: $appWasClosed): ${message.data}');
 
-    final type = message.data['type'];
-    final entryId = message.data['entryId'];
-    final ownerId = message.data['ownerId'];
+    _handleMessageData(message.data);
+  }
 
-    if (entryId != null && ownerId != null) {
+  void _handleMessageData(Map<String, dynamic> data) {
+    final entryId = data['entryId'];
+    final profileId = data['profileId'];
+
+    if (entryId != null && profileId != null) {
       // Wacht tot de eerste frame is getekend voordat we navigeren
       WidgetsBinding.instance.addPostFrameCallback((_) {
         navigatorKey.currentState?.push(
           MaterialPageRoute(
             builder: (_) => DailyEntryDetailScreen(
               entryId: entryId,
-              ownerId: ownerId,
+              profileId: profileId,
             ),
           ),
         );
@@ -86,7 +90,14 @@ class PushNotificationService {
     );
     await _localNotifications.initialize(initializationSettings,
         onDidReceiveNotificationResponse: (NotificationResponse response) {
-      // Hier kunnen we de payload van de lokale notificatie afhandelen indien nodig
+      if (response.payload != null) {
+        try {
+          final data = jsonDecode(response.payload!) as Map<String, dynamic>;
+          _handleMessageData(data);
+        } catch (e) {
+          developer.log('Fout bij het parsen van notificatie payload: $e');
+        }
+      }
     });
 
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -107,7 +118,7 @@ class PushNotificationService {
               icon: '@mipmap/ic_launcher',
             ),
           ),
-          payload: message.data.toString(), // Stuur de data mee als payload
+          payload: jsonEncode(message.data), // Stuur de data mee als JSON payload
         );
       }
     });
