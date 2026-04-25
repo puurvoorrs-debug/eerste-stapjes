@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="default_web_client_id" translatable="false">933684372615-10boe387nq7p4ebj5mvv2iknai09konj.apps.googleusercontent.com</string>
+    <string name="gcm_defaultSenderId" translatable="false">933684372615</string>
+    <string name="google_api_key" translatable="false">AIzaSyAoeCJ_kiMz1woYXEp91KJ7m6kDqHs3_BM</string>
+    <string name="google_app_id" translatable="false">1:933684372615:android:f8ea877c616e80c1b78422</string>
+    <string name="google_crash_reporting_api_key" translatable="false">AIzaSyAoeCJ_kiMz1woYXEp91KJ7m6kDqHs3_BM</string>
+    <string name="google_storage_bucket" translatable="false">eerste-stapjes-id.firebasestorage.app</string>
+    <string name="project_id" translatable="false">eerste-stapjes-id</string>
+</resources>

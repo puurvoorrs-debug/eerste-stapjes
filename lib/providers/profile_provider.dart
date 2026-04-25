@@ -307,6 +307,15 @@ class ProfileProvider with ChangeNotifier {
     return true;
   }
 
+  Future<void> unfollowProfile(String profileId) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    await _firestore.collection('profiles').doc(profileId).update({
+      'followers': FieldValue.arrayRemove([user.uid])
+    });
+  }
+
   @override
   void dispose() {
     _profileSubscription?.cancel();

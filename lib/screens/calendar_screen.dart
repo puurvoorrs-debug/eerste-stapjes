@@ -174,6 +174,42 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
+  void _showUnfollowDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Profiel Ontvolgen'),
+        content: Text('Weet je zeker dat je ${widget.profile.name} wilt ontvolgen?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuleren'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+              if (widget.profile.id != null) {
+                await profileProvider.unfollowProfile(widget.profile.id!);
+              }
+              if (context.mounted) {
+                Navigator.pop(context); // sluit dialog
+                Navigator.pop(context); // ga terug naar profiel selectie
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Profiel ontvolgd.')),
+                );
+              }
+            },
+            child: const Text('Ontvolgen'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _entriesSubscription?.cancel();
@@ -205,6 +241,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       MaterialPageRoute(builder: (context) => FollowersScreen(profile: profile)),
                     );
                   },
+                ),
+              if (!isOwner)
+                IconButton(
+                  icon: const Icon(Icons.person_remove),
+                  tooltip: 'Ontvolgen',
+                  onPressed: () => _showUnfollowDialog(context),
                 ),
               if (isOwner && profile.shareCode != null)
                 IconButton(

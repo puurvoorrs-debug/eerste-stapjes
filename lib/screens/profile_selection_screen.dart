@@ -93,6 +93,41 @@ class ProfileSelectionScreen extends StatelessWidget {
     );
   }
 
+  void _showUnfollowDialog(BuildContext context, Profile profile) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Profiel Ontvolgen'),
+        content: Text('Weet je zeker dat je ${profile.name} wilt ontvolgen?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuleren'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+              if (profile.id != null) {
+                await profileProvider.unfollowProfile(profile.id!);
+              }
+              if (context.mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Profiel ontvolgd.')),
+                );
+              }
+            },
+            child: const Text('Ontvolgen'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authService = AuthService();
@@ -254,6 +289,21 @@ class ProfileSelectionScreen extends StatelessWidget {
                         radius: 20,
                         backgroundColor: Colors.white,
                         child: Icon(Icons.edit, size: 22, color: Colors.black87),
+                      ),
+                    ),
+                  )
+                else
+                  Positioned(
+                    right: -5,
+                    bottom: -5,
+                    child: GestureDetector(
+                      onTap: () {
+                        _showUnfollowDialog(context, profile);
+                      },
+                      child: const CircleAvatar(
+                        radius: 20,
+                        backgroundColor: Colors.white,
+                        child: Icon(Icons.person_remove, size: 22, color: Colors.red),
                       ),
                     ),
                   ),
