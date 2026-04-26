@@ -67,10 +67,14 @@ class ProfileSelectionScreen extends StatelessWidget {
                 final success = await profileProvider.followProfile(codeController.text);
                 if (context.mounted) {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(success
-                          ? 'Je volgt nu dit profiel!'
-                          : 'Ongeldige code of je bent al eigenaar van dit profiel.')));
+                  String message;
+                  if (success) {
+                    message = 'Je volgverzoek is verstuurd! De eigenaar moet het eerst goedkeuren.';
+                  } else {
+                    message = 'Ongeldige code, je bent al volger, of je verzoek staat al open.';
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(message)));
                 }
               } on IncompleteProfileException catch (e) {
                 if (context.mounted) {

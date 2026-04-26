@@ -290,21 +290,67 @@ class ProfileProvider with ChangeNotifier {
         .get();
 
     if (querySnapshot.docs.isEmpty) {
-      return false;
+      return false; // Ongeldige code
     }
 
     final profileDoc = querySnapshot.docs.first;
     final profileData = profileDoc.data();
 
+    // Eigenaar kan zichzelf niet volgen
     if (profileData['ownerId'] == user.uid) {
       return false;
     }
-    
-    await profileDoc.reference.update({
-      'followers': FieldValue.arrayUnion([user.uid])
-    });
+
+    // Al een actieve volger? Geen nieuw verzoek nodig.
+    final existingFollowers = List<String>.from(profileData['followers'] ?? []);
+    if (existingFollowers.contains(user.uid)) {
+      return false;
+    }
+
+    // Al een openstaand verzoek? Niet opnieuw aanvragen.
+    final existingRequests = Map<String, dynamic>.from(profileData['followRequests'] ?? {});
+    if (existingRequests.containsKey(user.uid) &&
+        existingRequests[user.uid]['status'] == 'pending') {
+      return false;
+    }
+
+    // Volgverzoek aanmaken
+    await profileDoc.reference.set({
+      'followRequests': {
+        user.uid: {
+          'status': 'pending',
+          'name': userName,
+          'photoUrl': photoUrl,
+          'timestamp': FieldValue.serverTimestamp(),
+        }
+      }
+    }, SetOptions(merge: true));
 
     return true;
+  }
+
+  /// Eigenaar accepteert of weigert een volgverzoek
+  Future<void> respondToFollowRequest(
+      String profileId, String requesterId, String status) async {
+    final profileRef = _firestore.collection('profiles').doc(profileId);
+
+    if (status == 'approved') {
+      // Goedgekeurd: toevoegen aan followers en verzoek verwijderen
+      await profileRef.update({
+        'followers': FieldValue.arrayUnion([requesterId]),
+        'followRequests.$requesterId': FieldValue.delete(),
+      });
+    } else {
+      // Geweigerd: status updaten in followRequests
+      await profileRef.set({
+        'followRequests': {
+          requesterId: {
+            'status': 'rejected',
+            'timestamp': FieldValue.serverTimestamp(),
+          }
+        }
+      }, SetOptions(merge: true));
+    }
   }
 
   Future<void> unfollowProfile(String profileId) async {

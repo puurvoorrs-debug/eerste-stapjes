@@ -10,6 +10,7 @@ class Profile {
   final String ownerId; // UID of the user who owns/manages the profile
   final List<String> followers; // List of UIDs of users following the profile
   final String? shareCode; // Unique code to share the profile
+  final Map<String, dynamic> followRequests; // Pending follow requests
 
   Profile({
     this.id,
@@ -20,6 +21,7 @@ class Profile {
     required this.ownerId,
     this.followers = const [],
     this.shareCode,
+    this.followRequests = const {},
   });
 
   Profile copyWith({
@@ -31,6 +33,7 @@ class Profile {
     String? ownerId,
     List<String>? followers,
     String? shareCode,
+    Map<String, dynamic>? followRequests,
   }) {
     return Profile(
       id: id ?? this.id,
@@ -41,6 +44,7 @@ class Profile {
       ownerId: ownerId ?? this.ownerId,
       followers: followers ?? this.followers,
       shareCode: shareCode ?? this.shareCode,
+      followRequests: followRequests ?? this.followRequests,
     );
   }
 
@@ -53,6 +57,7 @@ class Profile {
       ownerId: map['ownerId'] as String,
       followers: List<String>.from(map['followers'] ?? []),
       shareCode: map['shareCode'] as String?,
+      followRequests: Map<String, dynamic>.from(map['followRequests'] ?? {}),
     );
   }
 
@@ -64,6 +69,7 @@ class Profile {
       'ownerId': ownerId,
       'followers': followers,
       'shareCode': shareCode,
+      'followRequests': followRequests,
     };
   }
 }

@@ -331,3 +331,77 @@ exports.sendNotificationOnDownloadRequestUpdate = functions.firestore
         }
       }
     });
+
+// Nieuwe functie: Notificeer eigenaar bij nieuw volgverzoek + verzoeker bij acceptatie
+exports.sendNotificationOnFollowRequestUpdate = functions.firestore
+    .document("profiles/{profileId}")
+    .onUpdate(async (change, context) => {
+      const beforeData = change.before.data();
+      const afterData = change.after.data();
+
+      const beforeRequests = beforeData.followRequests || {};
+      const afterRequests = afterData.followRequests || {};
+
+      const profileId = context.params.profileId;
+      const ownerId = afterData.ownerId;
+      const profileName = afterData.name || "een profiel";
+
+      for (const [userId, requestData] of Object.entries(afterRequests)) {
+        const beforeRequestData = beforeRequests[userId];
+        const status = requestData.status;
+
+        // Nieuw volgverzoek (pending) -> Notificeer eigenaar
+        if ((!beforeRequestData || beforeRequestData.status !== "pending") && status === "pending") {
+          const name = requestData.name || "Iemand";
+          const ownerDoc = await admin.firestore().collection("users").doc(ownerId).get();
+          if (ownerDoc.exists && ownerDoc.data().fcmToken) {
+            const message = {
+              notification: {
+                title: "Nieuw volgverzoek",
+                body: `${name} wil het profiel van ${profileName} volgen.`,
+              },
+              token: ownerDoc.data().fcmToken,
+              data: {
+                type: "follow_request",
+                profileId: profileId,
+              },
+            };
+            try {
+              await admin.messaging().send(message);
+              console.log(`Follow request notification sent to owner ${ownerId}.`);
+            } catch (e) {
+              console.error("Error sending follow request notification:", e);
+            }
+          }
+        }
+      }
+
+      // Volgverzoek geaccepteerd -> Notificeer verzoeker
+      // Dit detecteren we door te kijken of een uid nu in followers[] staat die er eerder niet in stond
+      const beforeFollowers = beforeData.followers || [];
+      const afterFollowers = afterData.followers || [];
+      const newFollowerIds = afterFollowers.filter((uid) => !beforeFollowers.includes(uid));
+
+      for (const newFollowerId of newFollowerIds) {
+        const requesterDoc = await admin.firestore().collection("users").doc(newFollowerId).get();
+        if (requesterDoc.exists && requesterDoc.data().fcmToken) {
+          const message = {
+            notification: {
+              title: "Volgverzoek geaccepteerd!",
+              body: `Je mag nu het profiel van ${profileName} bekijken.`,
+            },
+            token: requesterDoc.data().fcmToken,
+            data: {
+              type: "follow_approved",
+              profileId: profileId,
+            },
+          };
+          try {
+            await admin.messaging().send(message);
+            console.log(`Follow approval notification sent to user ${newFollowerId}.`);
+          } catch (e) {
+            console.error("Error sending follow approval notification:", e);
+          }
+        }
+      }
+    });

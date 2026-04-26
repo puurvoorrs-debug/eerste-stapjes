@@ -27,11 +27,13 @@ service cloud.firestore {
       // Profiel aanmaken mag als jij de eigenaar wordt
       allow create: if isSignedIn() && request.resource.data.ownerId == userId();
       
-      // Updaten: De eigenaar mag alles updaten. 
-      // Anderen mogen ALLEEN zichzelf toevoegen aan/verwijderen uit de 'followers' lijst
+      // Updaten:
+      // - De eigenaar mag alles updaten (inclusief followers en followRequests)
+      // - Anderen mogen ALLEEN zichzelf toevoegen aan 'followRequests' (volgverzoek aanvragen)
+      //   en mogen NIET zichzelf rechtstreeks aan 'followers' toevoegen
       allow update: if isSignedIn() && (
-        resource.data.ownerId == userId() || 
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followers'])
+        resource.data.ownerId == userId() ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followRequests'])
       );
       
       // Alleen de eigenaar mag het profiel verwijderen
