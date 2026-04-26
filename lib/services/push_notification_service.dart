@@ -7,7 +7,9 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import '../models/profile.dart';
 import '../screens/daily_entry_detail_screen.dart';
+import '../screens/followers_screen.dart';
 
 class PushNotificationService {
   final GlobalKey<NavigatorState> navigatorKey;
@@ -42,11 +44,36 @@ class PushNotificationService {
   }
 
   void _handleMessageData(Map<String, dynamic> data) {
-    final entryId = data['entryId'];
-    final profileId = data['profileId'];
+    final type = data['type'];
+    final profileId = data['profileId'] as String?;
+    final entryId = data['entryId'] as String?;
 
+    // Volgverzoek notificatie → ga naar de FollowersScreen van het profiel
+    if (type == 'follow_request' && profileId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        try {
+          final doc = await FirebaseFirestore.instance
+              .collection('profiles')
+              .doc(profileId)
+              .get();
+          if (doc.exists) {
+            final profile = Profile.fromMap(
+                doc.data() as Map<String, dynamic>, doc.id);
+            navigatorKey.currentState?.push(
+              MaterialPageRoute(
+                builder: (_) => FollowersScreen(profile: profile),
+              ),
+            );
+          }
+        } catch (e) {
+          developer.log('Fout bij navigeren naar FollowersScreen: $e');
+        }
+      });
+      return;
+    }
+
+    // Foto/reactie/like notificatie → ga naar DailyEntryDetailScreen
     if (entryId != null && profileId != null) {
-      // Wacht tot de eerste frame is getekend voordat we navigeren
       WidgetsBinding.instance.addPostFrameCallback((_) {
         navigatorKey.currentState?.push(
           MaterialPageRoute(
