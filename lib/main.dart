@@ -57,7 +57,7 @@ class MyApp extends StatelessWidget {
         builder: (context, themeProvider, child) {
           return MaterialApp(
             navigatorKey: navigatorKey,
-            title: 'Moment-Opname',
+            title: 'Eerste stapjes',
             theme: lightTheme,
             darkTheme: darkTheme,
             themeMode: themeProvider.themeMode,
