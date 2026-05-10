@@ -7,6 +7,8 @@ class CommentModel {
   final String userPhotoUrl;
   final String commentText;
   final Timestamp timestamp;
+  final List<String> likes;
+  final String? parentId;
 
   CommentModel({
     required this.id,
@@ -15,6 +17,8 @@ class CommentModel {
     required this.userPhotoUrl,
     required this.commentText,
     required this.timestamp,
+    this.likes = const [],
+    this.parentId,
   });
 
   // Converteer een CommentModel object naar een Map voor Firestore
@@ -25,6 +29,8 @@ class CommentModel {
       'userPhotoUrl': userPhotoUrl,
       'commentText': commentText,
       'timestamp': timestamp,
+      'likes': likes,
+      'parentId': parentId,
     };
   }
 
@@ -38,6 +44,8 @@ class CommentModel {
       userPhotoUrl: data['userPhotoUrl'] ?? '',
       commentText: data['commentText'] ?? '',
       timestamp: data['timestamp'] ?? Timestamp.now(),
+      likes: List<String>.from(data['likes'] ?? []),
+      parentId: data['parentId'],
     );
   }
 }

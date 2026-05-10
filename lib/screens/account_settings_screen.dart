@@ -101,6 +101,8 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Accountinstellingen'),
@@ -108,32 +110,61 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
       body: _currentUserModel == null
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
               child: Form(
                 key: _formKey,
                 child: Column(
                   children: <Widget>[
                     GestureDetector(
                       onTap: _pickImage,
-                      child: CircleAvatar(
-                        radius: 60,
-                        backgroundImage: _imageFile != null
-                            ? FileImage(_imageFile!)
-                            : (_currentUserModel!.photoUrl.isNotEmpty
-                                ? NetworkImage(_currentUserModel!.photoUrl)
-                                : null) as ImageProvider?,
-                        child: _imageFile == null && _currentUserModel!.photoUrl.isEmpty
-                            ? const Icon(Icons.person, size: 60)
-                            : null,
+                      child: Stack(
+                        alignment: Alignment.bottomRight,
+                        children: [
+                          Container(
+                            width: 120,
+                            height: 120,
+                            decoration: BoxDecoration(
+                              color: theme.cardTheme.color,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                              image: _imageFile != null
+                                  ? DecorationImage(image: FileImage(_imageFile!), fit: BoxFit.cover)
+                                  : (_currentUserModel!.photoUrl.isNotEmpty
+                                      ? DecorationImage(image: NetworkImage(_currentUserModel!.photoUrl), fit: BoxFit.cover)
+                                      : null),
+                            ),
+                            child: _imageFile == null && _currentUserModel!.photoUrl.isEmpty
+                                ? Icon(Icons.person, size: 60, color: Colors.grey[400])
+                                : null,
+                          ),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: theme.primaryColor,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: theme.scaffoldBackgroundColor, width: 3),
+                            ),
+                            child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                          ),
+                        ],
                       ),
                     ),
-                    TextButton(onPressed: _pickImage, child: const Text('Wijzig profielfoto')),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 40),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('Accountnaam', style: theme.textTheme.titleMedium),
+                    ),
+                    const SizedBox(height: 8),
                     TextFormField(
                       controller: _nameController,
                       decoration: const InputDecoration(
-                        labelText: 'Accountnaam',
-                        border: OutlineInputBorder(),
+                        hintText: 'Jouw naam',
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
@@ -142,13 +173,16 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 40),
                     if (_isLoading)
                       const CircularProgressIndicator()
                     else
                       ElevatedButton(
                         onPressed: _saveProfile,
-                        child: const Text('Opslaan'),
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size(double.infinity, 56),
+                        ),
+                        child: const Text('Opslaan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
                   ],
                 ),

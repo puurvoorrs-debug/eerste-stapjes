@@ -1,3 +1,4 @@
+﻿import 'dart:ui';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -41,7 +42,6 @@ class ProfileSelectionScreen extends StatelessWidget {
   void _showFollowDialog(BuildContext context) {
     final codeController = TextEditingController();
     final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
-    final theme = Theme.of(context);
 
     showDialog(
       context: context,
@@ -59,22 +59,32 @@ class ProfileSelectionScreen extends StatelessWidget {
             child: const Text('Annuleren'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: theme.primaryColor,
-                foregroundColor: Colors.white),
             onPressed: () async {
               try {
-                final success = await profileProvider.followProfile(codeController.text);
+                final result = await profileProvider.followProfile(codeController.text);
                 if (context.mounted) {
                   Navigator.pop(context);
                   String message;
-                  if (success) {
-                    message = 'Je volgverzoek is verstuurd! De eigenaar moet het eerst goedkeuren.';
-                  } else {
-                    message = 'Ongeldige code, je bent al volger, of je verzoek staat al open.';
+                  switch (result) {
+                    case 'request_sent':
+                      message = 'Volgverzoek verstuurd! Je krijgt toegang zodra de eigenaar dit goedkeurt.';
+                      break;
+                    case 'already_requested':
+                      message = 'Je hebt al een openstaand volgverzoek voor dit profiel.';
+                      break;
+                    case 'already_following':
+                      message = 'Je volgt dit profiel al.';
+                      break;
+                    case 'own_profile':
+                      message = 'Je kunt je eigen profiel niet volgen.';
+                      break;
+                    case 'invalid_code':
+                    default:
+                      message = 'Ongeldige code. Controleer de code en probeer het opnieuw.';
                   }
                   ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(message)));
+                    SnackBar(content: Text(message)),
+                  );
                 }
               } on IncompleteProfileException catch (e) {
                 if (context.mounted) {
@@ -102,27 +112,31 @@ class ProfileSelectionScreen extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Profiel Ontvolgen'),
-        content: Text('Weet je zeker dat je ${profile.name} wilt ontvolgen?'),
+        content: Text('Weet je zeker dat je ${profile.name} wilt ontvolgen? Je kunt de momenten van dit profiel dan niet meer bekijken.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Annuleren'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red[300]),
             onPressed: () async {
-              final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
-              if (profile.id != null) {
+              try {
+                final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
                 await profileProvider.unfollowProfile(profile.id!);
-              }
-              if (context.mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Profiel ontvolgd.')),
-                );
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Je bent gestopt met volgen.')),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Er is een onbekende fout opgetreden.')),
+                  );
+                }
               }
             },
             child: const Text('Ontvolgen'),
@@ -134,196 +148,70 @@ class ProfileSelectionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authService = AuthService();
     final currentUser = FirebaseAuth.instance.currentUser;
     final theme = Theme.of(context);
 
+    // Get display name or default to user
+    final displayName = currentUser?.displayName?.split(' ').first ?? 'Gebruiker';
+
     return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.asset('assets/images/background.jpg', fit: BoxFit.cover),
-          Container(color: Colors.black.withAlpha(128)),
-          SafeArea(
-            child: Column(
-              children: [
-                const Padding(
-                  padding: EdgeInsets.only(top: 40.0, bottom: 20.0),
-                  child: Text(
-                    'Eerste stapjes',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: 'Pacifico',
-                      fontSize: 48,
-                      color: Colors.white,
-                      shadows: [
-                        Shadow(blurRadius: 8.0, color: Colors.black54, offset: Offset(2.0, 2.0)),
-                      ],
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Consumer<ProfileProvider>(
-                    builder: (context, provider, child) {
-                      if (provider.profiles.isEmpty) {
-                        return const Center(
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 20.0),
-                            child: Text(
-                              'Maak of volg een profiel om te beginnen.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.white70, fontSize: 16),
-                            ),
-                          ),
-                        );
-                      }
-
-                      final ownProfiles = provider.profiles.where((p) => p.ownerId == currentUser?.uid).toList();
-                      final followedProfiles = provider.profiles.where((p) => p.ownerId != currentUser?.uid).toList();
-
-                      return SingleChildScrollView(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          child: Column(
-                            children: [
-                              if (ownProfiles.isNotEmpty)
-                                _buildProfileSection('Mijn Profielen', ownProfiles, context, true),
-                              if (followedProfiles.isNotEmpty)
-                                _buildProfileSection('Gevolgde Profielen', followedProfiles, context, false),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 30.0, top: 20.0, left: 20, right: 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                       _buildAddProfileButton(context, theme),
-                       const SizedBox(height: 12),
-                       _buildFollowProfileButton(context, theme),
-                    ],
-                  ),
-                )
-              ],
-            ),
-          ),
-          Positioned(
-            top: 40,
-            left: 10,
-            child: IconButton(
-              icon: const Icon(Icons.settings, color: Colors.white, size: 30),
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const AccountSettingsScreen()));
-              },
-              tooltip: 'Accountinstellingen',
-            ),
-          ),
-          Positioned(
-            top: 40,
-            right: 10,
-            child: IconButton(
-              icon: const Icon(Icons.logout, color: Colors.white, size: 30),
-              onPressed: () async {
-                await authService.signOut();
-              },
-              tooltip: 'Uitloggen',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProfileSection(String title, List<Profile> profiles, BuildContext context, bool editable) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16.0),
-          child: Text(title, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-        ),
-        Wrap(
-          spacing: 16.0,
-          runSpacing: 16.0,
-          alignment: WrapAlignment.center,
-          children: profiles.map((profile) => _buildProfileItem(context, profile, editable)).toList(),
-        ),
-        const SizedBox(height: 20),
-      ],
-    );
-  }
-
-  Widget _buildProfileItem(BuildContext context, Profile profile, bool editable) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(context, MaterialPageRoute(builder: (context) => CalendarScreen(profile: profile)));
-      },
-      child: SizedBox(
-        width: 150,
+      body: SafeArea(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Stack(
-              alignment: Alignment.bottomRight,
-              clipBehavior: Clip.none,
-              children: [
-                CircleAvatar(
-                  radius: 60,
-                  backgroundColor: Colors.white.withAlpha(204),
-                  backgroundImage: profile.profileImageUrl != null && profile.profileImageUrl!.isNotEmpty
-                      ? NetworkImage(profile.profileImageUrl!)
-                      : null,
-                  child: profile.profileImageUrl == null || profile.profileImageUrl!.isEmpty
-                      ? const Icon(Icons.person, size: 80, color: Colors.grey)
-                      : null,
-                ),
-                if (editable)
-                  Positioned(
-                    right: -5,
-                    bottom: -5,
-                    child: GestureDetector(
-                      onTap: () {
-                         Navigator.push(context, MaterialPageRoute(builder: (context) => CreateProfileScreen(profile: profile)));
-                      },
-                      child: const CircleAvatar(
-                        radius: 20,
-                        backgroundColor: Colors.white,
-                        child: Icon(Icons.edit, size: 22, color: Colors.black87),
+            _buildTopBar(context, displayName),
+            Expanded(
+              child: Consumer<ProfileProvider>(
+                builder: (context, provider, child) {
+                  if (provider.profiles.isEmpty) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 20.0),
+                        child: Text(
+                          'Maak of volg een profiel om te beginnen.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 16),
+                        ),
+                      ),
+                    );
+                  }
+
+                  final ownProfiles = provider.profiles.where((p) => p.ownerId == currentUser?.uid).toList();
+                  final followedProfiles = provider.profiles.where((p) => p.ownerId != currentUser?.uid).toList();
+
+                  return SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 24),
+                          const Text(
+                            'Mijn Profielen',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 16),
+                          _buildOwnProfilesSection(ownProfiles, context),
+                          const SizedBox(height: 32),
+                          if (followedProfiles.isNotEmpty) ...[
+                            const Text(
+                              'Gevolgde Profielen',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 16),
+                            _buildFollowedProfilesSection(followedProfiles, context),
+                          ],
+                          const SizedBox(height: 40), // Spacing before bottom button
+                        ],
                       ),
                     ),
-                  )
-                else
-                  Positioned(
-                    right: -5,
-                    bottom: -5,
-                    child: GestureDetector(
-                      onTap: () {
-                        _showUnfollowDialog(context, profile);
-                      },
-                      child: const CircleAvatar(
-                        radius: 20,
-                        backgroundColor: Colors.white,
-                        child: Icon(Icons.person_remove, size: 22, color: Colors.red),
-                      ),
-                    ),
-                  ),
-              ],
+                  );
+                },
+              ),
             ),
-            const SizedBox(height: 12),
-            Text(
-              profile.name,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  shadows: [Shadow(blurRadius: 4.0, color: Colors.black87, offset: Offset(1.0, 1.0))]),
+            Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: _buildFollowProfileButton(context, theme),
             ),
           ],
         ),
@@ -331,34 +219,323 @@ class ProfileSelectionScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAddProfileButton(BuildContext context, ThemeData theme) {
-    return ElevatedButton.icon(
-      icon: const Icon(Icons.add_circle_outline, color: Colors.white),
-      label: const Text('Nieuw profiel aanmaken'),
-      onPressed: () {
+  Widget _buildTopBar(BuildContext context, String name) {
+    final authService = AuthService();
+    final theme = Theme.of(context);
+    
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      decoration: BoxDecoration(
+        color: theme.cardTheme.color?.withOpacity(0.7) ?? Colors.white.withOpacity(0.7),
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(32),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Hoi, $name 👋',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+            ),
+          ),
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.settings_outlined),
+                onPressed: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const AccountSettingsScreen()));
+                },
+                tooltip: 'Instellingen',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+              const SizedBox(width: 16),
+              IconButton(
+                icon: const Icon(Icons.logout_outlined),
+                onPressed: () async {
+                  await authService.signOut();
+                },
+                tooltip: 'Uitloggen',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  ),
+),
+    );
+  }
+
+  Widget _buildOwnProfilesSection(List<Profile> profiles, BuildContext context) {
+    return SizedBox(
+      height: 280, // Increased height for larger cards
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        clipBehavior: Clip.none,
+        itemCount: profiles.length + 1,
+        itemBuilder: (context, index) {
+          if (index == profiles.length) {
+            return Padding(
+              padding: const EdgeInsets.only(left: 16.0),
+              child: _buildNewProfileCard(context),
+            );
+          }
+          return Padding(
+            padding: EdgeInsets.only(left: index == 0 ? 0 : 16.0),
+            child: _buildProfileCard(context, profiles[index]),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildProfileCard(BuildContext context, Profile profile) {
+    final theme = Theme.of(context);
+    
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(context, MaterialPageRoute(builder: (context) => CalendarScreen(profile: profile)));
+      },
+      child: Container(
+        width: 200, // Increased width
+        decoration: BoxDecoration(
+          color: theme.cardTheme.color,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 15,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: profile.profileImageUrl != null && profile.profileImageUrl!.isNotEmpty
+                  ? Image.network(
+                      profile.profileImageUrl!,
+                      fit: BoxFit.cover,
+                    )
+                  : Container(
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.person, size: 80, color: Colors.grey),
+                    ),
+            ),
+            // Glassmorphism overlay for bottom text
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 100,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: theme.cardTheme.color?.withOpacity(0.6) ?? Colors.white.withOpacity(0.6),
+                      border: Border(top: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5)),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 16,
+              bottom: 16,
+              right: 56, // Leave space for edit button
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    profile.name,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    'Bekijk momenten',
+                    style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7), fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              right: 12,
+              bottom: 12,
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => CreateProfileScreen(profile: profile)));
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: theme.primaryColor,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.edit_outlined, size: 20, color: Colors.white),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNewProfileCard(BuildContext context) {
+    final theme = Theme.of(context);
+    
+    return GestureDetector(
+      onTap: () {
         Navigator.push(context, MaterialPageRoute(builder: (context) => const CreateProfileScreen()));
       },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: theme.primaryColor,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      child: Container(
+        width: 120, // Slightly wider
+        decoration: BoxDecoration(
+          color: theme.colorScheme.secondary, // The blush peach color
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add, size: 40, color: theme.primaryColor),
+            const SizedBox(height: 8),
+            Text(
+              'Nieuw\nprofiel',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: theme.textTheme.bodyLarge?.color,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildFollowedProfilesSection(List<Profile> profiles, BuildContext context) {
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: profiles.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final profile = profiles[index];
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => CalendarScreen(profile: profile)));
+          },
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardTheme.color,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: Colors.grey[200],
+                  backgroundImage: profile.profileImageUrl != null && profile.profileImageUrl!.isNotEmpty
+                      ? NetworkImage(profile.profileImageUrl!)
+                      : null,
+                  child: profile.profileImageUrl == null || profile.profileImageUrl!.isEmpty
+                      ? const Icon(Icons.person, color: Colors.grey)
+                      : null,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        profile.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      Text(
+                        'Bekijk profiel', // Ideally shows "Nieuwe update" or "2 dagen geleden"
+                        style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+                // Indicator dot for updates (placeholder logic: always show for first, hide for others for demo)
+                if (index == 0)
+                  Container(
+                    width: 8,
+                    height: 8,
+                    margin: const EdgeInsets.only(right: 16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                IconButton(
+                  icon: const Icon(Icons.person_remove_outlined),
+                  color: Colors.red[300],
+                  tooltip: 'Ontvolgen',
+                  onPressed: () {
+                    _showUnfollowDialog(context, profile);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildFollowProfileButton(BuildContext context, ThemeData theme) {
     return OutlinedButton.icon(
-      icon: Icon(Icons.group_add_outlined, color: theme.primaryColor),
-      label: const Text('Een profiel volgen'),
+      icon: const Icon(Icons.person_add_alt_1_outlined),
+      label: const Text('Profiel volgen'),
       onPressed: () => _showFollowDialog(context),
       style: OutlinedButton.styleFrom(
-        backgroundColor: Colors.transparent,
-        foregroundColor: theme.primaryColor,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        side: BorderSide(color: theme.primaryColor, width: 2),
+        minimumSize: const Size(double.infinity, 56), // Full width
         textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
       ),
     );

@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -30,6 +32,7 @@ class CalendarScreen extends StatefulWidget {
 class _CalendarScreenState extends State<CalendarScreen> {
   late DateTime _focusedDay;
   DateTime? _selectedDay;
+  CalendarFormat _calendarFormat = CalendarFormat.week;
   Map<DateTime, DailyEntry> _entries = {};
   StreamSubscription? _entriesSubscription;
 
@@ -174,42 +177,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  void _showUnfollowDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Profiel Ontvolgen'),
-        content: Text('Weet je zeker dat je ${widget.profile.name} wilt ontvolgen?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuleren'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () async {
-              final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
-              if (widget.profile.id != null) {
-                await profileProvider.unfollowProfile(widget.profile.id!);
-              }
-              if (context.mounted) {
-                Navigator.pop(context); // sluit dialog
-                Navigator.pop(context); // ga terug naar profiel selectie
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Profiel ontvolgd.')),
-                );
-              }
-            },
-            child: const Text('Ontvolgen'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   void dispose() {
     _entriesSubscription?.cancel();
@@ -242,12 +209,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     );
                   },
                 ),
-              if (!isOwner)
-                IconButton(
-                  icon: const Icon(Icons.person_remove),
-                  tooltip: 'Ontvolgen',
-                  onPressed: () => _showUnfollowDialog(context),
-                ),
               if (isOwner && profile.shareCode != null)
                 IconButton(
                   icon: const Icon(Icons.share),
@@ -261,11 +222,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ),
               IconButton(
                 icon: const Icon(Icons.star),
-                onPressed: () {
-                  Navigator.push(
+                onPressed: () async {
+                  final selectedDate = await Navigator.push<DateTime>(
                     context,
                     MaterialPageRoute(builder: (context) => FavoritesScreen(profile: profile, entries: _entries)),
                   );
+                  if (selectedDate != null && mounted) {
+                    setState(() {
+                      _selectedDay = selectedDate;
+                      _focusedDay = selectedDate;
+                    });
+                  }
                 },
               ),
               if (isOwner)
@@ -284,14 +251,30 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ),
             ],
           ),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(16),
+          body: NotificationListener<OverscrollNotification>(
+            onNotification: (notification) {
+              if (notification.overscroll > 20 && dailyEntry != null) {
+                _navigateToDetailScreen();
+                return true;
+              }
+              return false;
+            },
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardTheme.color,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: TableCalendar(
                     locale: 'nl_NL',
@@ -307,9 +290,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         _focusedDay = focusedDay;
                       });
                     },
+                    calendarFormat: _calendarFormat,
+                    availableCalendarFormats: const {
+                      CalendarFormat.month: 'Maand',
+                      CalendarFormat.twoWeeks: '2 Weken',
+                      CalendarFormat.week: 'Week',
+                    },
+                    onFormatChanged: (format) {
+                      setState(() {
+                        _calendarFormat = format;
+                      });
+                    },
                     headerStyle: const HeaderStyle(
                       titleCentered: true,
-                      formatButtonVisible: false,
+                      formatButtonVisible: true,
+                      formatButtonShowsNext: false,
                     ),
                     calendarStyle: CalendarStyle(
                       todayDecoration: BoxDecoration(
@@ -369,17 +364,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         child: Stack(
                           children: [
                             Container(
-                              height: 350,
+                              height: 500, // Increased height for larger image
                               width: double.infinity,
                               decoration: BoxDecoration(
-                                color: Theme.of(context).cardColor,
-                                borderRadius: BorderRadius.circular(16),
+                                color: Theme.of(context).cardTheme.color,
+                                borderRadius: BorderRadius.circular(24),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.05),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
                               ),
                               child: dailyEntry != null
                                   ? Hero(
                                       tag: 'photo_${_selectedDay!.toIso8601String().split('T').first}',
                                       child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(16),
+                                        borderRadius: BorderRadius.circular(24),
                                         child: Image.network(
                                           dailyEntry.photoUrl,
                                           fit: BoxFit.cover,
@@ -394,11 +396,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                       child: Column(
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
-                                          Icon(Icons.photo_library_outlined, color: Theme.of(context).colorScheme.onSurface.withAlpha(153), size: 60),
+                                          Icon(Icons.photo_library_outlined, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), size: 60),
                                           const SizedBox(height: 10),
                                           Text(
                                             'Geen foto voor deze dag',
-                                            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(153), fontSize: 16),
+                                            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), fontSize: 16),
                                           ),
                                         ],
                                       ),
@@ -408,13 +410,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               Positioned.fill(
                                 child: Container(
                                   decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(16),
-                                    color: Colors.black.withOpacity(0.2),
-                                  ),
-                                  child: const Center(
-                                    child: Icon(Icons.zoom_in, color: Colors.white, size: 50, shadows: [Shadow(color: Colors.black54, blurRadius: 8)]),
+                                    borderRadius: BorderRadius.circular(24),
+                                    color: Colors.black.withOpacity(0.05), // Subtle darkening so the white bubble pops
                                   ),
                                 ),
+                              ),
+                            if (dailyEntry != null)
+                              Positioned(
+                                bottom: 16,
+                                left: 16,
+                                right: 16,
+                                child: _buildAnimatedLatestComment(_selectedDay!.toIso8601String().split('T').first),
                               ),
                           ],
                         ),
@@ -427,8 +433,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             width: double.infinity,
                             padding: const EdgeInsets.all(16.0),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).cardColor,
-                              borderRadius: BorderRadius.circular(16),
+                              color: Theme.of(context).cardTheme.color,
+                              borderRadius: BorderRadius.circular(24),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -456,6 +469,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ],
             ),
           ),
+          ),
           floatingActionButton: isOwner
               ? FloatingActionButton(
                   tooltip: 'Foto toevoegen',
@@ -465,6 +479,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
               : null,
         );
       },
+    );
+  }
+
+  Widget _buildAnimatedLatestComment(String dateString) {
+    return _AnimatedGlassComment(
+      profileId: widget.profile.id!,
+      dateString: dateString,
     );
   }
 
@@ -499,6 +520,206 @@ class _CalendarScreenState extends State<CalendarScreen> {
           },
         ),
       ],
+    );
+  }
+}
+
+class _AnimatedGlassComment extends StatefulWidget {
+  final String profileId;
+  final String dateString;
+
+  const _AnimatedGlassComment({required this.profileId, required this.dateString});
+
+  @override
+  State<_AnimatedGlassComment> createState() => _AnimatedGlassCommentState();
+}
+
+class _AnimatedGlassCommentState extends State<_AnimatedGlassComment> with SingleTickerProviderStateMixin {
+  late AnimationController _wiggleController;
+  Timer? _hideTimer;
+  String? _currentCommentId;
+  bool _isVisible = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _wiggleController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    )..repeat();
+  }
+
+  @override
+  void didUpdateWidget(_AnimatedGlassComment oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reset animatie en timer wanneer de datum verandert (andere post geswiped)
+    if (oldWidget.dateString != widget.dateString) {
+      _hideTimer?.cancel();
+      _currentCommentId = null;
+      setState(() {
+        _isVisible = true;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _wiggleController.dispose();
+    _hideTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startTimer(String commentId) {
+    if (_currentCommentId != commentId) {
+      _currentCommentId = commentId;
+      _isVisible = true;
+      _hideTimer?.cancel();
+      _hideTimer = Timer(const Duration(seconds: 5), () {
+        if (mounted) {
+          setState(() {
+            _isVisible = false;
+          });
+        }
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('profiles')
+          .doc(widget.profileId)
+          .collection('daily_entries')
+          .doc(widget.dateString)
+          .collection('comments')
+          .orderBy('timestamp', descending: true)
+          .limit(3)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        
+        final commentDocs = snapshot.data!.docs;
+        final docIds = commentDocs.map((d) => d.id).join(',');
+        
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _startTimer(docIds);
+        });
+
+        Widget content;
+        if (!_isVisible) {
+          content = const SizedBox.shrink(key: ValueKey('empty'));
+        } else {
+          content = Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8.0,
+            runSpacing: 8.0,
+            children: commentDocs.asMap().entries.map((entry) {
+              final index = entry.key;
+              final doc = entry.value;
+              final data = doc.data() as Map<String, dynamic>;
+              final userName = data['userName'] ?? 'Gebruiker';
+              final commentText = data['commentText'] ?? '';
+              final userPhotoUrl = data['userPhotoUrl'] as String?;
+              
+              return AnimatedBuilder(
+                animation: _wiggleController,
+                builder: (context, child) {
+                  final phase = index * (math.pi / 2);
+                  final sinValue = math.sin((_wiggleController.value * 2 * math.pi) + phase);
+                  final angle = sinValue * 0.05; // Subtiele wiggle
+                  final translateY = sinValue * 4.0;
+                  return Transform.translate(
+                    offset: Offset(0, translateY),
+                    child: Transform.rotate(
+                      angle: angle,
+                      child: child,
+                    ),
+                  );
+                },
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(30),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                    child: Container(
+                      constraints: const BoxConstraints(maxWidth: 180),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardTheme.color?.withOpacity(0.6) ?? Colors.white.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(30),
+                        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.0),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircleAvatar(
+                            radius: 12,
+                            backgroundColor: Theme.of(context).primaryColor,
+                            backgroundImage: userPhotoUrl != null && userPhotoUrl.isNotEmpty ? NetworkImage(userPhotoUrl) : null,
+                            child: userPhotoUrl == null || userPhotoUrl.isEmpty ? const Icon(Icons.person, size: 14, color: Colors.white) : null,
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  userName,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold, 
+                                    fontSize: 10,
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                  ),
+                                ),
+                                Text(
+                                  commentText,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          );
+        }
+
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 800),
+          transitionBuilder: (Widget child, Animation<double> animation) {
+            return SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.0, 0.5),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutBack)),
+              child: FadeTransition(
+                opacity: animation,
+                child: child,
+              ),
+            );
+          },
+          child: content,
+        );
+      },
     );
   }
 }

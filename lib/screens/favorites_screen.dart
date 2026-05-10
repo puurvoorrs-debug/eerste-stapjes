@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/profile.dart';
 import '../models/daily_entry.dart';
+import 'calendar_screen.dart';
 
 class FavoritesScreen extends StatelessWidget {
   final Profile profile;
@@ -50,23 +51,29 @@ class FavoritesScreen extends StatelessWidget {
               itemCount: favoriteEntries.length,
               itemBuilder: (context, index) {
                 final entry = favoriteEntries[index];
-                return GridTile(
-                  footer: GridTileBar(
-                    backgroundColor: Colors.black54,
-                    title: Text(
-                      DateFormat('d MMM yyyy', 'nl_NL').format(entry.key),
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                return GestureDetector(
+                  onTap: () {
+                    // Pop back to CalendarScreen and navigate to the selected day
+                    Navigator.pop(context, entry.key);
+                  },
+                  child: GridTile(
+                    footer: GridTileBar(
+                      backgroundColor: Colors.black54,
+                      title: Text(
+                        DateFormat('d MMM yyyy', 'nl_NL').format(entry.key),
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                        ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12.0),
+                      child: Image.network(
+                        entry.value.photoUrl,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, progress) {
+                            return progress == null ? child : const Center(child: CircularProgressIndicator());
+                        },
+                         errorBuilder: (context, error, stack) => const Center(child: Icon(Icons.broken_image, color: Colors.grey, size: 40)),
                       ),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12.0),
-                    child: Image.network(
-                      entry.value.photoUrl,
-                      fit: BoxFit.cover,
-                      loadingBuilder: (context, child, progress) {
-                          return progress == null ? child : const Center(child: CircularProgressIndicator());
-                      },
-                       errorBuilder: (context, error, stack) => const Center(child: Icon(Icons.broken_image, color: Colors.grey, size: 40)),
                     ),
                   ),
                 );

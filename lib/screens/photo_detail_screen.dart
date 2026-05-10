@@ -94,7 +94,11 @@ class _PhotoPage extends StatefulWidget {
 
 class __PhotoPageState extends State<_PhotoPage> {
   final _commentController = TextEditingController();
+  final _commentFocusNode = FocusNode();
   final User? _currentUser = FirebaseAuth.instance.currentUser;
+  
+  String? _replyingToCommentId;
+  String? _replyingToUserName;
 
   DocumentReference get _entryRef {
     final dateString = widget.date.toIso8601String().split('T').first;
@@ -103,6 +107,14 @@ class __PhotoPageState extends State<_PhotoPage> {
         .doc(widget.profile.id)
         .collection('daily_entries')
         .doc(dateString);
+  }
+
+  late final Stream<DocumentSnapshot> _entryStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _entryStream = _entryRef.snapshots();
   }
 
   bool _isDownloading = false;
@@ -236,7 +248,34 @@ class __PhotoPageState extends State<_PhotoPage> {
   void _postComment() {
     if (_commentController.text.trim().isEmpty || _currentUser == null) return;
     final provider = Provider.of<ProfileProvider>(context, listen: false);
-    provider.addComment(widget.profile.id!, widget.date, _commentController.text.trim());
+    provider.addComment(
+      widget.profile.id!, 
+      widget.date, 
+      _commentController.text.trim(),
+      parentId: _replyingToCommentId,
+    );
+    _commentController.clear();
+    setState(() {
+      _replyingToCommentId = null;
+      _replyingToUserName = null;
+    });
+    FocusScope.of(context).unfocus();
+  }
+
+  void _startReply(CommentModel comment) {
+    setState(() {
+      // If it's already a reply, reply to the same parent to keep it 1 level deep
+      _replyingToCommentId = comment.parentId ?? comment.id;
+      _replyingToUserName = comment.userName;
+    });
+    FocusScope.of(context).requestFocus(_commentFocusNode);
+  }
+
+  void _cancelReply() {
+    setState(() {
+      _replyingToCommentId = null;
+      _replyingToUserName = null;
+    });
     _commentController.clear();
     FocusScope.of(context).unfocus();
   }
@@ -286,7 +325,7 @@ class __PhotoPageState extends State<_PhotoPage> {
         ],
       ),
       body: StreamBuilder<DocumentSnapshot>(
-        stream: _entryRef.snapshots(),
+        stream: _entryStream,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -296,60 +335,75 @@ class __PhotoPageState extends State<_PhotoPage> {
           }
           final entry = DailyEntry.fromMap(snapshot.data!.data() as Map<String, dynamic>);
 
-          return SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Hero(
-                  tag: 'photo_$dateString',
-                  child: Image.network(entry.photoUrl, width: double.infinity, fit: BoxFit.cover),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
+          return Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          if (_currentUser != null)
-                            IconButton(
-                              icon: Icon(
-                                entry.isFavoritedBy(_currentUser.uid) ? Icons.star : Icons.star_border,
-                                color: entry.isFavoritedBy(_currentUser.uid) ? Colors.amber : null,
-                              ),
-                              onPressed: () => Provider.of<ProfileProvider>(context, listen: false).toggleFavorite(widget.profile.id!, widget.date),
-                            ),
-                          if (_currentUser != null)
-                            IconButton(
-                              icon: Icon(
-                                entry.isLikedBy(_currentUser.uid) ? Icons.favorite : Icons.favorite_border,
-                                color: entry.isLikedBy(_currentUser.uid) ? Colors.red : null,
-                              ),
-                              onPressed: () => Provider.of<ProfileProvider>(context, listen: false).toggleLike(widget.profile.id!, widget.date),
-                            ),
-                          const SizedBox(width: 8),
-                          Text('${entry.likes.length} ${entry.likes.length == 1 ? 'like' : 'likes'}'),
-                        ],
+                      Hero(
+                        tag: 'photo_$dateString',
+                        child: Image.network(entry.photoUrl, width: double.infinity, fit: BoxFit.cover),
                       ),
-                      const SizedBox(height: 12),
-                      if (entry.description.isNotEmpty)
-                        Text(entry.description, style: Theme.of(context).textTheme.bodyLarge),
-                      
-                      const SizedBox(height: 12),
-                      if (isOwner) _buildOwnerDownloadRequests(entry),
-                      if (!isOwner) _buildFollowerDownloadSection(entry),
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                if (_currentUser != null)
+                                  IconButton(
+                                    icon: Icon(
+                                      entry.isFavoritedBy(_currentUser.uid) ? Icons.star : Icons.star_border,
+                                      color: entry.isFavoritedBy(_currentUser.uid) ? Colors.amber : null,
+                                    ),
+                                    onPressed: () => Provider.of<ProfileProvider>(context, listen: false).toggleFavorite(widget.profile.id!, widget.date),
+                                  ),
+                                if (_currentUser != null)
+                                  IconButton(
+                                    icon: Icon(
+                                      entry.isLikedBy(_currentUser.uid) ? Icons.favorite : Icons.favorite_border,
+                                      color: entry.isLikedBy(_currentUser.uid) ? Colors.red : null,
+                                    ),
+                                    onPressed: () => Provider.of<ProfileProvider>(context, listen: false).toggleLike(widget.profile.id!, widget.date),
+                                  ),
+                                const SizedBox(width: 8),
+                                Text('${entry.likes.length} ${entry.likes.length == 1 ? 'like' : 'likes'}'),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            if (entry.description.isNotEmpty)
+                              Text(entry.description, style: Theme.of(context).textTheme.bodyLarge),
+                            
+                            const SizedBox(height: 12),
+                            if (isOwner) _buildOwnerDownloadRequests(entry),
+                            if (!isOwner) _buildFollowerDownloadSection(entry),
 
-                      const Divider(height: 30),
-                      Text('Reacties', style: Theme.of(context).textTheme.titleLarge),
-                      const SizedBox(height: 10),
-                      _buildCommentsList(),
-                      const SizedBox(height: 10),
-                      if (_currentUser != null) _buildCommentInputField(),
+                            const Divider(height: 30),
+                            Text('Reacties', style: Theme.of(context).textTheme.titleLarge),
+                            const SizedBox(height: 10),
+                            _buildCommentsList(),
+                            const SizedBox(height: 10),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),
-              ],
-            ),
+              ),
+              if (_currentUser != null)
+                Padding(
+                  padding: EdgeInsets.only(
+                    left: 16.0,
+                    right: 16.0,
+                    bottom: 16.0 + MediaQuery.of(context).padding.bottom,
+                    top: 8.0,
+                  ),
+                  child: _buildCommentInputField(),
+                ),
+            ],
           );
         },
       ),
@@ -436,48 +490,46 @@ class __PhotoPageState extends State<_PhotoPage> {
         );
       },
     );
-  }
-
-  Widget _buildCommentsList() {
+  }  Widget _buildCommentsList() {
     return StreamBuilder<QuerySnapshot>(
       stream: _entryRef.collection('comments').orderBy('timestamp', descending: true).snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
-        final comments = snapshot.data!.docs.map((doc) => CommentModel.fromDocument(doc)).toList();
+        final allComments = snapshot.data!.docs.map((doc) => CommentModel.fromDocument(doc)).toList();
 
-        if (comments.isEmpty) {
+        if (allComments.isEmpty) {
           return const Padding(
             padding: EdgeInsets.symmetric(vertical: 20.0),
             child: Center(child: Text('Wees de eerste die reageert!')),
           );
         }
 
+        // Group comments by parentId
+        final rootComments = allComments.where((c) => c.parentId == null).toList();
+        final childComments = allComments.where((c) => c.parentId != null).toList();
+
         return ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: comments.length,
+          itemCount: rootComments.length,
           itemBuilder: (context, index) {
-            final comment = comments[index];
-            final bool isCommentOwner = _currentUser?.uid == comment.userId;
-
-            return ListTile(
-              leading: CircleAvatar(
-                backgroundImage: comment.userPhotoUrl.isNotEmpty ? NetworkImage(comment.userPhotoUrl) : null,
-                child: comment.userPhotoUrl.isEmpty ? const Icon(Icons.person) : null,
-              ),
-              title: Text(comment.userName),
-              subtitle: Text(comment.commentText),
-              trailing: isCommentOwner
-                  ? IconButton(
-                      icon: const Icon(Icons.more_horiz),
-                      onPressed: () => _showCommentOptions(comment),
-                    )
-                  : Text(
-                      DateFormat('dd-MM-yy').format(comment.timestamp.toDate()),
-                      style: Theme.of(context).textTheme.bodySmall,
+            final rootComment = rootComments[index];
+            final replies = childComments.where((c) => c.parentId == rootComment.id).toList();
+            
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildCommentTile(rootComment, isReply: false),
+                if (replies.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 40.0),
+                    child: Column(
+                      children: replies.map((reply) => _buildCommentTile(reply, isReply: true)).toList(),
                     ),
+                  ),
+              ],
             );
           },
         );
@@ -485,22 +537,139 @@ class __PhotoPageState extends State<_PhotoPage> {
     );
   }
 
-  Widget _buildCommentInputField() {
-    return Row(
-      children: [
-        Expanded(
-          child: TextField(
-            controller: _commentController,
-            decoration: const InputDecoration(
-              hintText: 'Schrijf een reactie...',
-              border: OutlineInputBorder(),
-            ),
-            textCapitalization: TextCapitalization.sentences,
+  Widget _buildCommentTile(CommentModel comment, {required bool isReply}) {
+    final bool isCommentOwner = _currentUser?.uid == comment.userId;
+    final bool isLiked = _currentUser != null && comment.likes.contains(_currentUser!.uid);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: isReply ? 14 : 18,
+            backgroundColor: Theme.of(context).primaryColor,
+            backgroundImage: comment.userPhotoUrl.isNotEmpty ? NetworkImage(comment.userPhotoUrl) : null,
+            child: comment.userPhotoUrl.isEmpty ? Icon(Icons.person, size: isReply ? 16 : 20, color: Colors.white) : null,
           ),
-        ),
-        IconButton(
-          icon: const Icon(Icons.send),
-          onPressed: _postComment,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      comment.userName,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      DateFormat('dd-MM-yy').format(comment.timestamp.toDate()),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(comment.commentText),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () => _startReply(comment),
+                      child: Text('Reageer', style: TextStyle(fontSize: 12, color: Theme.of(context).primaryColor, fontWeight: FontWeight.bold)),
+                    ),
+                    if (isCommentOwner) ...[
+                      const SizedBox(width: 16),
+                      GestureDetector(
+                        onTap: () => _showCommentOptions(comment),
+                        child: Text('Opties', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5))),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: Icon(
+                  isLiked ? Icons.favorite : Icons.favorite_border,
+                  size: 16,
+                  color: isLiked ? Colors.red : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                ),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: () {
+                  if (_currentUser != null) {
+                    Provider.of<ProfileProvider>(context, listen: false)
+                        .toggleCommentLike(widget.profile.id!, widget.date, comment.id);
+                  }
+                },
+              ),
+              if (comment.likes.isNotEmpty)
+                Text('${comment.likes.length}', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7))),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCommentInputField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_replyingToCommentId != null)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            margin: const EdgeInsets.only(bottom: 8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Antwoorden op $_replyingToUserName', style: TextStyle(color: Theme.of(context).primaryColor, fontSize: 12)),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: _cancelReply,
+                  child: Icon(Icons.close, size: 16, color: Theme.of(context).primaryColor),
+                ),
+              ],
+            ),
+          ),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _commentController,
+                focusNode: _commentFocusNode,
+                decoration: InputDecoration(
+                  hintText: 'Schrijf een reactie...',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                ),
+                textCapitalization: TextCapitalization.sentences,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor,
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.send, color: Colors.white, size: 20),
+                onPressed: _postComment,
+              ),
+            ),
+          ],
         ),
       ],
     );

@@ -134,7 +134,7 @@ exports.sendNotificationOnNewPhoto = functions.firestore
       }
     });
 
-// Corrected Function: Notify photo owner on new comment
+// Notify photo owner on new comment, AND notify parent comment author on reply
 exports.sendNotificationOnNewComment = functions.firestore
     .document("profiles/{profileId}/daily_entries/{entryId}/comments/{commentId}")
     .onCreate(async (snap, context) => {
@@ -142,8 +142,10 @@ exports.sendNotificationOnNewComment = functions.firestore
       const entryId = context.params.entryId;
       const commentData = snap.data();
       const commenterId = commentData.userId;
+      const commenterName = commentData.userName || "Iemand";
+      const parentId = commentData.parentId || null;
 
-      console.log(`New comment by ${commenterId} on post ${entryId} for profile ${profileId}`);
+      console.log(`New comment by ${commenterId} on post ${entryId} for profile ${profileId}. ParentId: ${parentId}`);
 
       const profileDoc = await admin.firestore().collection("profiles").doc(profileId).get();
       if (!profileDoc.exists) {
@@ -152,38 +154,65 @@ exports.sendNotificationOnNewComment = functions.firestore
       }
       const ownerId = profileDoc.data().ownerId;
 
-      if (ownerId === commenterId) {
-        console.log("User commented on their own post. No notification needed.");
-        return;
-      }
-
-      const ownerUserDoc = await admin.firestore().collection("users").doc(ownerId).get();
-      if (!ownerUserDoc.exists || !ownerUserDoc.data().fcmToken) {
-        console.log(`Photo owner ${ownerId} has no FCM token or does not exist.`);
-        return;
-      }
-      const fcmToken = ownerUserDoc.data().fcmToken;
-
-      const commenterName = commentData.userName || "Iemand";
-
-      const message = {
-        notification: {
-          title: "Nieuwe reactie",
-          body: `${commenterName} heeft gereageerd op je foto.`,
-        },
-        token: fcmToken,
-        data: {
-          type: "comment",
-          entryId: entryId,
-          profileId: profileId,
-        },
+      const notificationData = {
+        type: "comment",
+        entryId: entryId,
+        profileId: profileId,
       };
 
-      try {
-        await admin.messaging().send(message);
-        console.log("Successfully sent comment notification.");
-      } catch (error) {
-        console.error("Error sending comment notification:", error);
+      // 1. Stuur notificatie naar de profiel-eigenaar (als zij niet zelf reageerden)
+      if (ownerId !== commenterId) {
+        const ownerUserDoc = await admin.firestore().collection("users").doc(ownerId).get();
+        if (ownerUserDoc.exists && ownerUserDoc.data().fcmToken) {
+          const ownerMessage = {
+            notification: {
+              title: "Nieuwe reactie",
+              body: `${commenterName} heeft gereageerd op je foto.`,
+            },
+            token: ownerUserDoc.data().fcmToken,
+            data: notificationData,
+          };
+          try {
+            await admin.messaging().send(ownerMessage);
+            console.log(`Comment notification sent to owner ${ownerId}.`);
+          } catch (error) {
+            console.error("Error sending comment notification to owner:", error);
+          }
+        }
+      }
+
+      // 2. Als dit een antwoord is op een comment, notificeer de auteur van die comment
+      if (parentId) {
+        const parentCommentDoc = await admin.firestore()
+            .collection("profiles").doc(profileId)
+            .collection("daily_entries").doc(entryId)
+            .collection("comments").doc(parentId)
+            .get();
+
+        if (parentCommentDoc.exists) {
+          const parentAuthorId = parentCommentDoc.data().userId;
+
+          // Niet notificeren als het dezelfde persoon is als de reageerder of eigenaar (die al een melding kreeg)
+          if (parentAuthorId !== commenterId && parentAuthorId !== ownerId) {
+            const parentAuthorDoc = await admin.firestore().collection("users").doc(parentAuthorId).get();
+            if (parentAuthorDoc.exists && parentAuthorDoc.data().fcmToken) {
+              const replyMessage = {
+                notification: {
+                  title: "Iemand reageerde op jouw reactie",
+                  body: `${commenterName} heeft gereageerd op jouw reactie.`,
+                },
+                token: parentAuthorDoc.data().fcmToken,
+                data: notificationData,
+              };
+              try {
+                await admin.messaging().send(replyMessage);
+                console.log(`Reply notification sent to parent comment author ${parentAuthorId}.`);
+              } catch (error) {
+                console.error("Error sending reply notification:", error);
+              }
+            }
+          }
+        }
       }
     });
 
@@ -403,5 +432,68 @@ exports.sendNotificationOnFollowRequestUpdate = functions.firestore
             console.error("Error sending follow approval notification:", e);
           }
         }
+      }
+    });
+
+// Nieuwe functie: Notificeer de auteur van een comment wanneer iemand die liket
+exports.sendNotificationOnCommentLike = functions.firestore
+    .document("profiles/{profileId}/daily_entries/{entryId}/comments/{commentId}")
+    .onUpdate(async (change, context) => {
+      const beforeData = change.before.data();
+      const afterData = change.after.data();
+
+      const beforeLikes = beforeData.likes || [];
+      const afterLikes = afterData.likes || [];
+
+      // Alleen doorgaan als er een like bij is gekomen
+      if (afterLikes.length <= beforeLikes.length) {
+        return;
+      }
+
+      // Vind de nieuwe liker
+      const newLikerId = afterLikes.find((uid) => !beforeLikes.includes(uid));
+      if (!newLikerId) return;
+
+      const commentAuthorId = afterData.userId;
+
+      // Stuur geen notificatie als je je eigen comment liket
+      if (newLikerId === commentAuthorId) {
+        console.log("User liked their own comment. No notification needed.");
+        return;
+      }
+
+      const profileId = context.params.profileId;
+      const entryId = context.params.entryId;
+
+      // Haal de naam van de liker op
+      const likerDoc = await admin.firestore().collection("users").doc(newLikerId).get();
+      const likerName = likerDoc.exists ? (likerDoc.data().displayName || "Iemand") : "Iemand";
+
+      // Haal het FCM-token van de comment-auteur op
+      const authorDoc = await admin.firestore().collection("users").doc(commentAuthorId).get();
+      if (!authorDoc.exists || !authorDoc.data().fcmToken) {
+        console.log(`Comment author ${commentAuthorId} has no FCM token.`);
+        return;
+      }
+
+      const message = {
+        notification: {
+          title: "Iemand vindt jouw reactie leuk!",
+          body: `${likerName} vindt jouw reactie leuk.`,
+        },
+        token: authorDoc.data().fcmToken,
+        data: {
+          type: "comment_like",
+          entryId: entryId,
+          profileId: profileId,
+          commentId: context.params.commentId,
+        },
+      };
+
+      try {
+        await admin.messaging().send(message);
+        console.log(`Comment like notification sent to ${commentAuthorId}.`);
+      } catch (e) {
+        console.error("Error sending comment like notification:", e);
       }
     });

@@ -229,7 +229,7 @@ class ProfileProvider with ChangeNotifier {
     });
   }
 
-  Future<void> addComment(String profileId, DateTime date, String commentText) async {
+  Future<void> addComment(String profileId, DateTime date, String commentText, {String? parentId}) async {
     final user = _auth.currentUser;
     if (user == null) return;
 
@@ -247,9 +247,31 @@ class ProfileProvider with ChangeNotifier {
       userPhotoUrl: userProfile.photoUrl,
       commentText: commentText,
       timestamp: Timestamp.now(),
+      parentId: parentId,
     );
 
     await commentRef.set(newComment.toMap());
+  }
+
+  Future<void> toggleCommentLike(String profileId, DateTime date, String commentId) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final dateString = date.toIso8601String().split('T').first;
+    final docRef = _firestore.collection('profiles').doc(profileId).collection('daily_entries').doc(dateString).collection('comments').doc(commentId);
+
+    return _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(docRef);
+      if (!snapshot.exists) return;
+      final data = snapshot.data()!;
+      final List<String> likes = List<String>.from(data['likes'] ?? []);
+
+      if (likes.contains(user.uid)) {
+        transaction.update(docRef, {'likes': FieldValue.arrayRemove([user.uid])});
+      } else {
+        transaction.update(docRef, {'likes': FieldValue.arrayUnion([user.uid])});
+      }
+    });
   }
 
   Future<void> deleteComment(String profileId, DateTime date, String commentId) async {
@@ -265,9 +287,9 @@ class ProfileProvider with ChangeNotifier {
     });
   }
 
-  Future<bool> followProfile(String shareCode) async {
+  Future<String> followProfile(String shareCode) async {
     final user = _auth.currentUser;
-    if (user == null) return false;
+    if (user == null) return 'error';
 
     final userDoc = await _firestore.collection('users').doc(user.uid).get();
     if (!userDoc.exists) {
@@ -290,7 +312,7 @@ class ProfileProvider with ChangeNotifier {
         .get();
 
     if (querySnapshot.docs.isEmpty) {
-      return false; // Ongeldige code
+      return 'invalid_code'; // Ongeldige code
     }
 
     final profileDoc = querySnapshot.docs.first;
@@ -298,20 +320,20 @@ class ProfileProvider with ChangeNotifier {
 
     // Eigenaar kan zichzelf niet volgen
     if (profileData['ownerId'] == user.uid) {
-      return false;
+      return 'own_profile';
     }
 
     // Al een actieve volger? Geen nieuw verzoek nodig.
     final existingFollowers = List<String>.from(profileData['followers'] ?? []);
     if (existingFollowers.contains(user.uid)) {
-      return false;
+      return 'already_following';
     }
 
     // Al een openstaand verzoek? Niet opnieuw aanvragen.
     final existingRequests = Map<String, dynamic>.from(profileData['followRequests'] ?? {});
     if (existingRequests.containsKey(user.uid) &&
         existingRequests[user.uid]['status'] == 'pending') {
-      return false;
+      return 'already_requested';
     }
 
     // Volgverzoek aanmaken
@@ -326,7 +348,7 @@ class ProfileProvider with ChangeNotifier {
       }
     }, SetOptions(merge: true));
 
-    return true;
+    return 'request_sent';
   }
 
   /// Eigenaar accepteert of weigert een volgverzoek
@@ -357,8 +379,12 @@ class ProfileProvider with ChangeNotifier {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    await _firestore.collection('profiles').doc(profileId).update({
-      'followers': FieldValue.arrayRemove([user.uid])
+    final profileRef = _firestore.collection('profiles').doc(profileId);
+
+    // Verwijder uit followers EN ruim eventuele followRequests op
+    await profileRef.update({
+      'followers': FieldValue.arrayRemove([user.uid]),
+      'followRequests.${user.uid}': FieldValue.delete(),
     });
   }
 

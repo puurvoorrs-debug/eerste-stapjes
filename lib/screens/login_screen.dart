@@ -94,15 +94,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               const SizedBox(height: 50),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.primaryColor,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+                  minimumSize: const Size(double.infinity, 56),
                 ),
                 icon: Image.asset('assets/google_logo.png', height: 24.0),
-                label: const Text('Login met Google', style: TextStyle(fontSize: 16)),
+                label: const Text('Login met Google', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 onPressed: () async {
                   final scaffoldMessenger = ScaffoldMessenger.of(context);
                   try {

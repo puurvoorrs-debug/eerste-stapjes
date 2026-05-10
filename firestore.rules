@@ -30,10 +30,15 @@ service cloud.firestore {
       // Updaten:
       // - De eigenaar mag alles updaten (inclusief followers en followRequests)
       // - Anderen mogen ALLEEN zichzelf toevoegen aan 'followRequests' (volgverzoek aanvragen)
-      //   en mogen NIET zichzelf rechtstreeks aan 'followers' toevoegen
+      // - Een volger mag zichzelf verwijderen uit 'followers' (ontvolgen)
       allow update: if isSignedIn() && (
         resource.data.ownerId == userId() ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followRequests'])
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followRequests']) ||
+        (
+          userId() in resource.data.followers &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followers']) &&
+          !(userId() in request.resource.data.followers)
+        )
       );
       
       // Alleen de eigenaar mag het profiel verwijderen
@@ -71,9 +76,22 @@ service cloud.firestore {
            // Iedereen mag een comment plaatsen zolang het hun eigen userId bevat
            allow create: if isSignedIn() && request.resource.data.userId == userId();
            
-           // Updaten/Verwijderen mag alleen als jij de comment schreef óf als jij de baas van het profiel bent
-           allow update, delete: if isSignedIn() && (
-             resource.data.userId == userId() || 
+           // Updaten mag als:
+           // - Jij de comment schreef (voor bewerken van eigen tekst)
+           // - Jij de profiel-eigenaar bent (voor moderatie)
+           // - Jij een volger bent en ALLEEN het 'likes' veld aanpast (liken van andermans comment)
+           allow update: if isSignedIn() && (
+             resource.data.userId == userId() ||
+             get(/databases/$(database)/documents/profiles/$(profileId)).data.ownerId == userId() ||
+             (
+               userId() in get(/databases/$(database)/documents/profiles/$(profileId)).data.followers &&
+               request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes'])
+             )
+           );
+
+           // Verwijderen mag alleen als jij de comment schreef of de profiel-eigenaar bent
+           allow delete: if isSignedIn() && (
+             resource.data.userId == userId() ||
              get(/databases/$(database)/documents/profiles/$(profileId)).data.ownerId == userId()
            );
         }
