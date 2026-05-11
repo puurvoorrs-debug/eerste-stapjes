@@ -1,6 +1,7 @@
-﻿import 'dart:ui';
+import 'dart:ui';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../providers/profile_provider.dart';
 import '../services/auth_service.dart';
@@ -163,13 +164,60 @@ class ProfileSelectionScreen extends StatelessWidget {
               child: Consumer<ProfileProvider>(
                 builder: (context, provider, child) {
                   if (provider.profiles.isEmpty) {
-                    return const Center(
+                    return Center(
                       child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 20.0),
-                        child: Text(
-                          'Maak of volg een profiel om te beginnen.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SvgPicture.asset(
+                              'assets/images/Statische_logo_voor_app_icon.svg',
+                              width: 80,
+                              height: 80,
+                            ),
+                            const SizedBox(height: 24),
+                            Text(
+                              'Welkom!',
+                              style: theme.textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Maak een eigen profiel aan om momenten bij te houden, of volg iemand om zijn of haar momenten te bekijken.',
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                height: 1.5,
+                              ),
+                            ),
+                            const SizedBox(height: 36),
+                            // Nieuw profiel aanmaken
+                            FilledButton.icon(
+                              icon: const Icon(Icons.add),
+                              label: const Text('Nieuw profiel aanmaken'),
+                              onPressed: () {
+                                Navigator.push(context, MaterialPageRoute(builder: (context) => const CreateProfileScreen()));
+                              },
+                              style: FilledButton.styleFrom(
+                                minimumSize: const Size(double.infinity, 54),
+                                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            // Profiel volgen
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.person_add_alt_1_outlined),
+                              label: const Text('Profiel volgen'),
+                              onPressed: () => _showFollowDialog(context),
+                              style: OutlinedButton.styleFrom(
+                                minimumSize: const Size(double.infinity, 54),
+                                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     );
@@ -177,6 +225,10 @@ class ProfileSelectionScreen extends StatelessWidget {
 
                   final ownProfiles = provider.profiles.where((p) => p.ownerId == currentUser?.uid).toList();
                   final followedProfiles = provider.profiles.where((p) => p.ownerId != currentUser?.uid).toList();
+
+                  // If the user has no own profiles but does follow profiles,
+                  // show the followed profiles prominently (large card style).
+                  final bool hasOwnProfiles = ownProfiles.isNotEmpty;
 
                   return SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
@@ -186,22 +238,33 @@ class ProfileSelectionScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const SizedBox(height: 24),
-                          const Text(
-                            'Mijn Profielen',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 16),
-                          _buildOwnProfilesSection(ownProfiles, context),
-                          const SizedBox(height: 32),
-                          if (followedProfiles.isNotEmpty) ...[
+                          if (hasOwnProfiles) ...[
+                            // --- Normal layout when user has own profiles ---
+                            const Text(
+                              'Mijn Profielen',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 16),
+                            _buildOwnProfilesSection(ownProfiles, context),
+                            const SizedBox(height: 32),
+                            if (followedProfiles.isNotEmpty) ...[
+                              const Text(
+                                'Gevolgde Profielen',
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 16),
+                              _buildFollowedProfilesSection(followedProfiles, context),
+                            ],
+                          ] else if (followedProfiles.isNotEmpty) ...[
+                            // --- Prominent layout when user only follows profiles ---
                             const Text(
                               'Gevolgde Profielen',
                               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 16),
-                            _buildFollowedProfilesSection(followedProfiles, context),
+                            _buildFollowedProfilesProminentSection(followedProfiles, context),
                           ],
-                          const SizedBox(height: 40), // Spacing before bottom button
+                          const SizedBox(height: 40),
                         ],
                       ),
                     ),
@@ -209,9 +272,17 @@ class ProfileSelectionScreen extends StatelessWidget {
                 },
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: _buildFollowProfileButton(context, theme),
+            // Only show the bottom follow-button when the user already has
+            // at least one profile (own or followed). New users see the
+            // buttons inside the empty-state instead.
+            Consumer<ProfileProvider>(
+              builder: (context, provider, _) {
+                if (provider.profiles.isEmpty) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: _buildFollowProfileButton(context, theme),
+                );
+              },
             ),
           ],
         ),
@@ -445,6 +516,139 @@ class ProfileSelectionScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Shows followed profiles in the large horizontal card style, used when
+  /// the user has no own profiles so followed profiles are the primary focus.
+  Widget _buildFollowedProfilesProminentSection(List<Profile> profiles, BuildContext context) {
+    return SizedBox(
+      height: 280,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        clipBehavior: Clip.none,
+        itemCount: profiles.length + 1,
+        itemBuilder: (context, index) {
+          // Last item = "Nieuw profiel" card
+          if (index == profiles.length) {
+            return Padding(
+              padding: const EdgeInsets.only(left: 16.0),
+              child: _buildNewProfileCard(context),
+            );
+          }
+
+          final profile = profiles[index];
+          final theme = Theme.of(context);
+
+          return Padding(
+            padding: EdgeInsets.only(left: index == 0 ? 0 : 16.0),
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => CalendarScreen(profile: profile)));
+              },
+              child: Container(
+                width: 200,
+                decoration: BoxDecoration(
+                  color: theme.cardTheme.color,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 15,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(24),
+                      child: profile.profileImageUrl != null && profile.profileImageUrl!.isNotEmpty
+                          ? Image.network(
+                              profile.profileImageUrl!,
+                              fit: BoxFit.cover,
+                            )
+                          : Container(
+                              color: Colors.grey[300],
+                              child: const Icon(Icons.person, size: 80, color: Colors.grey),
+                            ),
+                    ),
+                    // Glassmorphism overlay for bottom text
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      height: 100,
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: theme.cardTheme.color?.withOpacity(0.6) ?? Colors.white.withOpacity(0.6),
+                              border: Border(top: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5)),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: 16,
+                      bottom: 16,
+                      right: 56,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            profile.name,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            'Bekijk momenten',
+                            style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7), fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Unfollow button (bottom-right)
+                    Positioned(
+                      right: 12,
+                      bottom: 12,
+                      child: GestureDetector(
+                        onTap: () => _showUnfollowDialog(context, profile),
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.red[300],
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.2),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(Icons.person_remove_outlined, size: 20, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
