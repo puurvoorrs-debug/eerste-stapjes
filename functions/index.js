@@ -3,6 +3,27 @@ const admin = require("firebase-admin");
 
 admin.initializeApp();
 
+// Helper om een notificatie document in Firestore op te slaan
+async function createNotification(userId, notificationId, data) {
+  try {
+    const defaultData = {
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      isRead: false,
+    };
+    await admin.firestore()
+        .collection("users")
+        .doc(userId)
+        .collection("notifications")
+        .doc(notificationId)
+        .set({
+          ...defaultData,
+          ...data,
+        }, { merge: true });
+  } catch (e) {
+    console.error(`Error creating notification for user ${userId}:`, e);
+  }
+}
+
 // Corrected Function: send daily photo reminders
 exports.sendDailyPhotoReminders = functions.pubsub
     .schedule("every day 09:00")
@@ -76,6 +97,7 @@ exports.sendNotificationOnNewPhoto = functions.firestore
     .document("profiles/{profileId}/daily_entries/{entryId}")
     .onCreate(async (snap, context) => {
       const profileId = context.params.profileId;
+      const entryId = context.params.entryId;
       console.log(`New photo detected for profile: ${profileId}`);
 
       const profileDoc = await admin.firestore().collection("profiles").doc(profileId).get();
@@ -96,11 +118,22 @@ exports.sendNotificationOnNewPhoto = functions.firestore
 
       const ownerDoc = await admin.firestore().collection("users").doc(ownerId).get();
       const posterName = ownerDoc.exists ? (ownerDoc.data().displayName || "Iemand") : "Iemand";
+      const posterPhotoUrl = ownerDoc.exists ? ownerDoc.data().photoUrl : null;
 
       const tokens = [];
       for (const followerId of followerIds) {
         // Don't send notification to the person who posted
         if (followerId === ownerId) continue;
+
+        // Maak in-app notificatie document
+        await createNotification(followerId, `new_post_${profileId}_${entryId}`, {
+          type: "new_post",
+          profileId: profileId,
+          entryId: entryId,
+          senderId: ownerId,
+          senderName: posterName,
+          senderPhotoUrl: posterPhotoUrl,
+        });
 
         const followerDoc = await admin.firestore().collection("users").doc(followerId).get();
         if (followerDoc.exists && followerDoc.data().fcmToken) {
@@ -121,7 +154,7 @@ exports.sendNotificationOnNewPhoto = functions.firestore
         tokens: tokens,
         data: {
           type: "new_post",
-          entryId: context.params.entryId,
+          entryId: entryId,
           profileId: profileId,
         },
       };
@@ -140,9 +173,11 @@ exports.sendNotificationOnNewComment = functions.firestore
     .onCreate(async (snap, context) => {
       const profileId = context.params.profileId;
       const entryId = context.params.entryId;
+      const commentId = context.params.commentId;
       const commentData = snap.data();
       const commenterId = commentData.userId;
       const commenterName = commentData.userName || "Iemand";
+      const commenterPhotoUrl = commentData.userPhotoUrl || null;
       const parentId = commentData.parentId || null;
 
       console.log(`New comment by ${commenterId} on post ${entryId} for profile ${profileId}. ParentId: ${parentId}`);
@@ -158,10 +193,21 @@ exports.sendNotificationOnNewComment = functions.firestore
         type: "comment",
         entryId: entryId,
         profileId: profileId,
+        commentId: commentId,
       };
 
       // 1. Stuur notificatie naar de profiel-eigenaar (als zij niet zelf reageerden)
       if (ownerId !== commenterId) {
+        await createNotification(ownerId, `comment_${profileId}_${entryId}_${commentId}`, {
+          type: "comment",
+          profileId: profileId,
+          entryId: entryId,
+          commentId: commentId,
+          senderId: commenterId,
+          senderName: commenterName,
+          senderPhotoUrl: commenterPhotoUrl,
+        });
+
         const ownerUserDoc = await admin.firestore().collection("users").doc(ownerId).get();
         if (ownerUserDoc.exists && ownerUserDoc.data().fcmToken) {
           const ownerMessage = {
@@ -194,6 +240,16 @@ exports.sendNotificationOnNewComment = functions.firestore
 
           // Niet notificeren als het dezelfde persoon is als de reageerder of eigenaar (die al een melding kreeg)
           if (parentAuthorId !== commenterId && parentAuthorId !== ownerId) {
+            await createNotification(parentAuthorId, `reply_${profileId}_${entryId}_${commentId}`, {
+              type: "reply",
+              profileId: profileId,
+              entryId: entryId,
+              commentId: commentId,
+              senderId: commenterId,
+              senderName: commenterName,
+              senderPhotoUrl: commenterPhotoUrl,
+            });
+
             const parentAuthorDoc = await admin.firestore().collection("users").doc(parentAuthorId).get();
             if (parentAuthorDoc.exists && parentAuthorDoc.data().fcmToken) {
               const replyMessage = {
@@ -228,7 +284,6 @@ exports.sendNotificationOnNewLike = functions.firestore
 
       // Check if a like was added (not removed)
       if (afterLikes.length <= beforeLikes.length) {
-        console.log("A like was removed or count is unchanged. No notification needed.");
         return;
       }
 
@@ -236,7 +291,6 @@ exports.sendNotificationOnNewLike = functions.firestore
       const newLikerId = afterLikes.find((liker) => !beforeLikes.includes(liker));
 
       if (!newLikerId) {
-        console.log("Could not determine the new liker. No notification sent.");
         return;
       }
 
@@ -252,19 +306,27 @@ exports.sendNotificationOnNewLike = functions.firestore
       const ownerId = profileDoc.data().ownerId;
 
       if (ownerId === newLikerId) {
-        console.log("User liked their own post. No notification needed.");
         return;
       }
-
-      const ownerUserDoc = await admin.firestore().collection("users").doc(ownerId).get();
-      if (!ownerUserDoc.exists || !ownerUserDoc.data().fcmToken) {
-        console.log(`Photo owner ${ownerId} has no FCM token or does not exist.`);
-        return;
-      }
-      const fcmToken = ownerUserDoc.data().fcmToken;
 
       const likerUserDoc = await admin.firestore().collection("users").doc(newLikerId).get();
       const likerName = likerUserDoc.exists ? (likerUserDoc.data().displayName || "Iemand") : "Iemand";
+      const likerPhotoUrl = likerUserDoc.exists ? likerUserDoc.data().photoUrl : null;
+
+      await createNotification(ownerId, `like_${profileId}_${entryId}_${newLikerId}`, {
+        type: "like",
+        profileId: profileId,
+        entryId: entryId,
+        senderId: newLikerId,
+        senderName: likerName,
+        senderPhotoUrl: likerPhotoUrl,
+      });
+
+      const ownerUserDoc = await admin.firestore().collection("users").doc(ownerId).get();
+      if (!ownerUserDoc.exists || !ownerUserDoc.data().fcmToken) {
+        return;
+      }
+      const fcmToken = ownerUserDoc.data().fcmToken;
 
       const message = {
         notification: {
@@ -304,15 +366,27 @@ exports.sendNotificationOnDownloadRequestUpdate = functions.firestore
       if (!profileDoc.exists) return;
       const ownerId = profileDoc.data().ownerId;
       const profileName = profileDoc.data().name || "een profiel";
+      const ownerName = "Eigenaar"; // Can be improved
 
       // Detect new pending requests OR approved requests
       for (const [userId, requestData] of Object.entries(afterRequests)) {
         const beforeRequestData = beforeRequests[userId];
         const status = requestData.status;
         const name = requestData.name || "Iemand";
+        const photoUrl = requestData.photoUrl || null;
 
         if ((!beforeRequestData || beforeRequestData.status !== "pending") && status === "pending") {
           // New request -> Notify Owner
+          await createNotification(ownerId, `dl_req_${profileId}_${entryId}_${userId}`, {
+            type: "download_request",
+            profileId: profileId,
+            entryId: entryId,
+            senderId: userId,
+            senderName: name,
+            senderPhotoUrl: photoUrl,
+            status: "pending",
+          });
+
           const ownerUserDoc = await admin.firestore().collection("users").doc(ownerId).get();
           if (ownerUserDoc.exists && ownerUserDoc.data().fcmToken) {
             const message = {
@@ -329,13 +403,24 @@ exports.sendNotificationOnDownloadRequestUpdate = functions.firestore
             };
             try {
               await admin.messaging().send(message);
-              console.log(`Successfully sent download request notification to owner ${ownerId}.`);
             } catch (e) {
               console.error(e);
             }
           }
         } else if (beforeRequestData && beforeRequestData.status === "pending" && status === "approved") {
-          // Approved request -> Notify Requester
+          // Approved request -> Delete Owner's Notification
+          await admin.firestore().collection("users").doc(ownerId).collection("notifications").doc(`dl_req_${profileId}_${entryId}_${userId}`).delete().catch(e => console.error(e));
+
+          // Notify Requester
+          await createNotification(userId, `dl_app_${profileId}_${entryId}_${ownerId}`, {
+            type: "download_approved",
+            profileId: profileId,
+            entryId: entryId,
+            senderId: ownerId,
+            senderName: profileName,
+            status: "approved",
+          });
+
           const requesterUserDoc = await admin.firestore().collection("users").doc(userId).get();
           if (requesterUserDoc.exists && requesterUserDoc.data().fcmToken) {
              const message = {
@@ -352,11 +437,13 @@ exports.sendNotificationOnDownloadRequestUpdate = functions.firestore
             };
             try {
               await admin.messaging().send(message);
-              console.log(`Successfully sent download approval notification to user ${userId}.`);
             } catch (e) {
               console.error(e);
             }
           }
+        } else if (beforeRequestData && beforeRequestData.status === "pending" && status === "rejected") {
+           // Rejected request -> Delete Owner's Notification
+           await admin.firestore().collection("users").doc(ownerId).collection("notifications").doc(`dl_req_${profileId}_${entryId}_${userId}`).delete().catch(e => console.error(e));
         }
       }
     });
@@ -379,9 +466,30 @@ exports.sendNotificationOnFollowRequestUpdate = functions.firestore
         const beforeRequestData = beforeRequests[userId];
         const status = requestData.status;
 
-        // Nieuw volgverzoek (pending) -> Notificeer eigenaar
+        // Nieuw volgverzoek (pending)
         if ((!beforeRequestData || beforeRequestData.status !== "pending") && status === "pending") {
           const name = requestData.name || "Iemand";
+          const photoUrl = requestData.photoUrl || null;
+
+          // 1. Notificeer eigenaar
+          await createNotification(ownerId, `follow_req_${profileId}_${userId}`, {
+            type: "follow_request",
+            profileId: profileId,
+            senderId: userId,
+            senderName: name,
+            senderPhotoUrl: photoUrl,
+            status: "pending",
+          });
+
+          // 2. Notificeer verzoeker dat het verzoek is verstuurd
+          await createNotification(userId, `follow_sent_${profileId}`, {
+            type: "follow_request_sent",
+            profileId: profileId,
+            senderId: ownerId,
+            senderName: profileName, // Laat de naam van het profiel zien
+            status: "pending",
+          });
+
           const ownerDoc = await admin.firestore().collection("users").doc(ownerId).get();
           if (ownerDoc.exists && ownerDoc.data().fcmToken) {
             const message = {
@@ -397,11 +505,16 @@ exports.sendNotificationOnFollowRequestUpdate = functions.firestore
             };
             try {
               await admin.messaging().send(message);
-              console.log(`Follow request notification sent to owner ${ownerId}.`);
             } catch (e) {
               console.error("Error sending follow request notification:", e);
             }
           }
+        } else if (beforeRequestData && beforeRequestData.status === "pending" && status === "rejected") {
+          // Geweigerd -> Delete Owner's Notification
+          await admin.firestore().collection("users").doc(ownerId).collection("notifications").doc(`follow_req_${profileId}_${userId}`).delete().catch(e => console.error(e));
+          await createNotification(userId, `follow_sent_${profileId}`, {
+            status: "rejected",
+          });
         }
       }
 
@@ -412,6 +525,19 @@ exports.sendNotificationOnFollowRequestUpdate = functions.firestore
       const newFollowerIds = afterFollowers.filter((uid) => !beforeFollowers.includes(uid));
 
       for (const newFollowerId of newFollowerIds) {
+        // Delete Owner's Notification and clean up requester's pending notification
+        await admin.firestore().collection("users").doc(ownerId).collection("notifications").doc(`follow_req_${profileId}_${newFollowerId}`).delete().catch(e => console.error(e));
+        await admin.firestore().collection("users").doc(newFollowerId).collection("notifications").doc(`follow_sent_${profileId}`).delete().catch(e => console.error(e));
+
+        // Add a new notification for the requester that they were approved
+        await createNotification(newFollowerId, `follow_app_${profileId}_${ownerId}`, {
+          type: "follow_approved",
+          profileId: profileId,
+          senderId: ownerId,
+          senderName: profileName,
+          status: "approved",
+        });
+
         const requesterDoc = await admin.firestore().collection("users").doc(newFollowerId).get();
         if (requesterDoc.exists && requesterDoc.data().fcmToken) {
           const message = {
@@ -427,7 +553,6 @@ exports.sendNotificationOnFollowRequestUpdate = functions.firestore
           };
           try {
             await admin.messaging().send(message);
-            console.log(`Follow approval notification sent to user ${newFollowerId}.`);
           } catch (e) {
             console.error("Error sending follow approval notification:", e);
           }
@@ -445,34 +570,38 @@ exports.sendNotificationOnCommentLike = functions.firestore
       const beforeLikes = beforeData.likes || [];
       const afterLikes = afterData.likes || [];
 
-      // Alleen doorgaan als er een like bij is gekomen
       if (afterLikes.length <= beforeLikes.length) {
         return;
       }
 
-      // Vind de nieuwe liker
       const newLikerId = afterLikes.find((uid) => !beforeLikes.includes(uid));
       if (!newLikerId) return;
 
       const commentAuthorId = afterData.userId;
-
-      // Stuur geen notificatie als je je eigen comment liket
       if (newLikerId === commentAuthorId) {
-        console.log("User liked their own comment. No notification needed.");
         return;
       }
 
       const profileId = context.params.profileId;
       const entryId = context.params.entryId;
+      const commentId = context.params.commentId;
 
-      // Haal de naam van de liker op
       const likerDoc = await admin.firestore().collection("users").doc(newLikerId).get();
       const likerName = likerDoc.exists ? (likerDoc.data().displayName || "Iemand") : "Iemand";
+      const likerPhotoUrl = likerDoc.exists ? likerDoc.data().photoUrl : null;
 
-      // Haal het FCM-token van de comment-auteur op
+      await createNotification(commentAuthorId, `comment_like_${profileId}_${commentId}_${newLikerId}`, {
+        type: "comment_like",
+        profileId: profileId,
+        entryId: entryId,
+        commentId: commentId,
+        senderId: newLikerId,
+        senderName: likerName,
+        senderPhotoUrl: likerPhotoUrl,
+      });
+
       const authorDoc = await admin.firestore().collection("users").doc(commentAuthorId).get();
       if (!authorDoc.exists || !authorDoc.data().fcmToken) {
-        console.log(`Comment author ${commentAuthorId} has no FCM token.`);
         return;
       }
 
@@ -486,13 +615,12 @@ exports.sendNotificationOnCommentLike = functions.firestore
           type: "comment_like",
           entryId: entryId,
           profileId: profileId,
-          commentId: context.params.commentId,
+          commentId: commentId,
         },
       };
 
       try {
         await admin.messaging().send(message);
-        console.log(`Comment like notification sent to ${commentAuthorId}.`);
       } catch (e) {
         console.error("Error sending comment like notification:", e);
       }

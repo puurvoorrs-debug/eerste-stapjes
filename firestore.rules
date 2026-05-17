@@ -17,6 +17,15 @@ service cloud.firestore {
       allow read: if isSignedIn();
       // Je mag alleen je eigen account-gegevens aanpassen
       allow write: if isSignedIn() && userId() == uid;
+
+      // Notifications subcollection
+      match /notifications/{notificationId} {
+        allow read: if isSignedIn() && userId() == uid;
+        // User can update their own notifications (e.g. mark as read)
+        allow update: if isSignedIn() && userId() == uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
+        // Delete own notifications
+        allow delete: if isSignedIn() && userId() == uid;
+      }
     }
 
     // --- KINDERPROFIELEN (PROFILES) ---
