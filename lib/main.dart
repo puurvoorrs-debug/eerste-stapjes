@@ -32,13 +32,19 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  final pushNotificationService = PushNotificationService(navigatorKey);
-  await pushNotificationService.initialize();
+  // Background handler zo vroeg mogelijk registreren
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   await initializeDateFormatting('nl_NL', null);
 
+  final pushNotificationService = PushNotificationService(navigatorKey);
+
   runApp(MyApp(navigatorKey: navigatorKey));
+
+  // initialize() MOET na runApp() zodat navigatorKey.currentState niet null is
+  // wanneer getInitialMessage() de navigatie probeert uit te voeren bij een
+  // koude app-start via een push-notificatie.
+  await pushNotificationService.initialize();
 }
 
 class MyApp extends StatelessWidget {

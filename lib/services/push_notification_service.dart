@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 
@@ -50,7 +51,7 @@ class PushNotificationService {
 
     // Volgverzoek notificatie → ga naar de FollowersScreen van het profiel
     if (type == 'follow_request' && profileId != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
+      _navigateWhenReady(() async {
         try {
           final doc = await FirebaseFirestore.instance
               .collection('profiles')
@@ -74,7 +75,7 @@ class PushNotificationService {
 
     // Foto/reactie/like notificatie → ga naar DailyEntryDetailScreen
     if (entryId != null && profileId != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      _navigateWhenReady(() {
         navigatorKey.currentState?.push(
           MaterialPageRoute(
             builder: (_) => DailyEntryDetailScreen(
@@ -85,6 +86,32 @@ class PushNotificationService {
         );
       });
     }
+  }
+
+  /// Wacht totdat de navigator beschikbaar is voordat er genavigeerd wordt.
+  /// Bij een koude app-start via push-notificatie kan navigatorKey.currentState
+  /// nog null zijn terwijl AuthWrapper bezig is met laden.
+  void _navigateWhenReady(void Function() action) {
+    // Werkt de navigator al? Direct uitvoeren.
+    if (navigatorKey.currentState != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => action());
+      return;
+    }
+
+    // Anders: poll elke 100ms totdat de navigator klaar is (max 3 seconden).
+    const maxRetries = 30;
+    int attempts = 0;
+    late Timer timer;
+    timer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+      attempts++;
+      if (navigatorKey.currentState != null) {
+        timer.cancel();
+        WidgetsBinding.instance.addPostFrameCallback((_) => action());
+      } else if (attempts >= maxRetries) {
+        timer.cancel();
+        developer.log('Navigator niet beschikbaar na $maxRetries pogingen.');
+      }
+    });
   }
 
   Future<void> _requestPermissions() async {
@@ -142,7 +169,7 @@ class PushNotificationService {
               channel.id,
               channel.name,
               channelDescription: channel.description,
-              icon: '@mipmap/ic_launcher',
+              icon: '@drawable/ic_notification',
             ),
           ),
           payload: jsonEncode(message.data), // Stuur de data mee als JSON payload
