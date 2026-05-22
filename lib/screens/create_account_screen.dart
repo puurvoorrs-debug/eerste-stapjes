@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'profile_selection_screen.dart';
+import '../providers/locale_provider.dart';
 
 class CreateAccountScreen extends StatefulWidget {
   const CreateAccountScreen({super.key});
@@ -68,6 +69,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         'uid': _currentUser.uid,
         'displayName': _nameController.text,
         'photoUrl': photoUrl,
+        'language': Provider.of<LocaleProvider>(context, listen: false).locale.languageCode,
       });
 
       // Navigeer naar het volgende scherm
@@ -80,7 +82,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       // Toon een foutmelding
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fout bij het opslaan van profiel: $e')),
+          SnackBar(content: Text('${context.tr('Fout bij het opslaan van profiel', 'Error saving profile')}: $e')),
         );
       }
     } finally {
@@ -96,7 +98,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Maak je account aan'),
+        title: Text(context.tr('Maak je account aan', 'Create your account')),
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -121,17 +123,17 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                TextButton(onPressed: _pickImage, child: const Text('Kies een profielfoto')),
+                TextButton(onPressed: _pickImage, child: Text(context.tr('Kies een profielfoto', 'Choose a profile picture'))),
                 const SizedBox(height: 24),
                 TextFormField(
                   controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Accountnaam',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: context.tr('Accountnaam', 'Account name'),
+                    border: const OutlineInputBorder(),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Voer een accountnaam in';
+                      return context.tr('Voer een accountnaam in', 'Please enter an account name');
                     }
                     return null;
                   },
@@ -145,7 +147,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
                     ),
-                    child: const Text('Opslaan en doorgaan'),
+                    child: Text(context.tr('Opslaan en doorgaan', 'Save and continue')),
                   ),
               ],
             ),

@@ -10,6 +10,7 @@ import '../models/profile.dart';
 import '../models/daily_entry.dart';
 import '../models/comment_model.dart';
 import '../providers/profile_provider.dart';
+import '../providers/locale_provider.dart';
 
 // HOOFDWIDGET: BEHEERT DE PAGEVIEW
 class PhotoDetailScreen extends StatefulWidget {
@@ -62,8 +63,8 @@ class _PhotoDetailScreenState extends State<PhotoDetailScreen> {
         final entry = widget.entries[date];
 
         if (entry == null) {
-          return const Scaffold(
-            body: Center(child: Text('Fout: Kon entry niet laden.')),
+          return Scaffold(
+            body: Center(child: Text(context.tr('Fout: Kon entry niet laden.', 'Error: Could not load entry.'))),
           );
         }
 
@@ -131,7 +132,7 @@ class __PhotoPageState extends State<_PhotoPage> {
       if (!hasAccess) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Geen toegang tot de galerij. Geef de app toestemming in de instellingen.')),
+            SnackBar(content: Text(context.tr('Geen toegang tot de galerij. Geef de app toestemming in de instellingen.', 'No access to gallery. Please grant permission in settings.'))),
           );
         }
         return;
@@ -142,11 +143,11 @@ class __PhotoPageState extends State<_PhotoPage> {
       await Dio().download(url, savePath);
       await Gal.putImage(savePath);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Foto is opgeslagen in je galerij!')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('Foto is opgeslagen in je galerij!', 'Photo saved to gallery!'))));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fout bij downloaden: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${context.tr('Fout bij downloaden', 'Error downloading')}: $e')));
       }
     } finally {
       if (mounted) {
@@ -171,14 +172,14 @@ class __PhotoPageState extends State<_PhotoPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Download Aanvragen', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          Text(context.tr('Download Aanvragen', 'Download Requests'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 8),
           ...pendingRequests.map((req) {
             final userId = req.key;
             final name = req.value['name'] ?? 'Iemand';
             return ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text('$name wil deze foto downloaden'),
+              title: Text(context.tr('$name wil deze foto downloaden', '$name wants to download this photo')),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -210,7 +211,7 @@ class __PhotoPageState extends State<_PhotoPage> {
         padding: const EdgeInsets.symmetric(vertical: 8.0),
         child: ElevatedButton.icon(
           icon: const Icon(Icons.file_download),
-          label: const Text('Download Aanvragen'),
+          label: Text(context.tr('Download Aanvragen', 'Request Download')),
           onPressed: () => Provider.of<ProfileProvider>(context, listen: false).requestPhotoDownload(widget.profile.id!, widget.date),
         ),
       );
@@ -219,7 +220,7 @@ class __PhotoPageState extends State<_PhotoPage> {
         padding: const EdgeInsets.symmetric(vertical: 8.0),
         child: OutlinedButton.icon(
           icon: const Icon(Icons.hourglass_empty),
-          label: const Text('Aanvraag in behandeling'),
+          label: Text(context.tr('Aanvraag in behandeling', 'Request pending')),
           onPressed: null,
         ),
       );
@@ -228,7 +229,7 @@ class __PhotoPageState extends State<_PhotoPage> {
         padding: const EdgeInsets.symmetric(vertical: 8.0),
         child: OutlinedButton.icon(
           icon: const Icon(Icons.cancel, color: Colors.red),
-          label: const Text('Aanvraag afgewezen', style: TextStyle(color: Colors.red)),
+          label: Text(context.tr('Aanvraag afgewezen', 'Request rejected'), style: const TextStyle(color: Colors.red)),
           onPressed: null,
         ),
       );
@@ -237,7 +238,7 @@ class __PhotoPageState extends State<_PhotoPage> {
         padding: const EdgeInsets.symmetric(vertical: 8.0),
         child: ElevatedButton.icon(
           icon: _isDownloading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.file_download),
-          label: Text(_isDownloading ? 'Downloaden...' : 'Download Foto'),
+          label: Text(_isDownloading ? context.tr('Downloaden...', 'Downloading...') : context.tr('Download Foto', 'Download Photo')),
           onPressed: _isDownloading ? null : () => _downloadImage(entry.photoUrl),
         ),
       );
@@ -284,11 +285,11 @@ class __PhotoPageState extends State<_PhotoPage> {
     final bool? confirmed = await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Post Verwijderen?'),
-        content: const Text('Weet je zeker dat je deze post wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.'),
+        title: Text(context.tr('Post Verwijderen?', 'Delete Post?')),
+        content: Text(context.tr('Weet je zeker dat je deze post wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.', 'Are you sure you want to delete this post? This action cannot be undone.')),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Annuleren')),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Verwijderen', style: TextStyle(color: Colors.red))),
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(context.tr('Annuleren', 'Cancel'))),
+          TextButton(onPressed: () => Navigator.of(context).pop(true), child: Text(context.tr('Verwijderen', 'Delete'), style: const TextStyle(color: Colors.red))),
         ],
       ),
     );
@@ -301,7 +302,7 @@ class __PhotoPageState extends State<_PhotoPage> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fout bij verwijderen: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${context.tr('Fout bij verwijderen', 'Error deleting')}: $e')));
         }
       }
     }
@@ -314,13 +315,13 @@ class __PhotoPageState extends State<_PhotoPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Moment van ${DateFormat('d MMMM yyyy', 'nl_NL').format(widget.date)}'),
+        title: Text('${context.tr('Moment van', 'Moment of')} ${DateFormat('d MMMM yyyy', context.tr('nl_NL', 'en_US')).format(widget.date)}'),
         actions: [
           if (isOwner)
             IconButton(
               icon: const Icon(Icons.delete_outline),
               onPressed: _deletePost,
-              tooltip: 'Post verwijderen',
+              tooltip: context.tr('Post verwijderen', 'Delete post'),
             )
         ],
       ),
@@ -331,7 +332,7 @@ class __PhotoPageState extends State<_PhotoPage> {
             return const Center(child: CircularProgressIndicator());
           }
           if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(child: Text('Deze post bestaat niet meer of wordt geladen.'));
+            return Center(child: Text(context.tr('Deze post bestaat niet meer of wordt geladen.', 'This post no longer exists or is being loaded.')));
           }
           final entry = DailyEntry.fromMap(snapshot.data!.data() as Map<String, dynamic>);
 
@@ -382,7 +383,7 @@ class __PhotoPageState extends State<_PhotoPage> {
                             if (!isOwner) _buildFollowerDownloadSection(entry),
 
                             const Divider(height: 30),
-                            Text('Reacties', style: Theme.of(context).textTheme.titleLarge),
+                            Text(context.tr('Reacties', 'Comments'), style: Theme.of(context).textTheme.titleLarge),
                             const SizedBox(height: 10),
                             _buildCommentsList(),
                             const SizedBox(height: 10),
@@ -418,7 +419,7 @@ class __PhotoPageState extends State<_PhotoPage> {
           children: [
             ListTile(
               leading: const Icon(Icons.edit),
-              title: const Text('Bewerken'),
+              title: Text(context.tr('Bewerken', 'Edit')),
               onTap: () {
                 Navigator.pop(context);
                 _showEditCommentDialog(comment);
@@ -426,7 +427,7 @@ class __PhotoPageState extends State<_PhotoPage> {
             ),
             ListTile(
               leading: const Icon(Icons.delete),
-              title: const Text('Verwijderen'),
+              title: Text(context.tr('Verwijderen', 'Delete')),
               onTap: () {
                 Navigator.pop(context);
                 _showDeleteCommentDialog(comment);
@@ -444,14 +445,14 @@ class __PhotoPageState extends State<_PhotoPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Reactie bewerken'),
+          title: Text(context.tr('Reactie bewerken', 'Edit comment')),
           content: TextField(
             controller: editController,
             autofocus: true,
             maxLines: null,
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuleren')),
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(context.tr('Annuleren', 'Cancel'))),
             TextButton(
               onPressed: () {
                 final newText = editController.text.trim();
@@ -461,7 +462,7 @@ class __PhotoPageState extends State<_PhotoPage> {
                   Navigator.pop(context);
                 }
               },
-              child: const Text('Opslaan'),
+              child: Text(context.tr('Opslaan', 'Save')),
             ),
           ],
         );
@@ -474,17 +475,17 @@ class __PhotoPageState extends State<_PhotoPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Reactie Verwijderen?'),
-          content: const Text('Weet je zeker dat je deze reactie wilt verwijderen?'),
+          title: Text(context.tr('Reactie Verwijderen?', 'Delete Comment?')),
+          content: Text(context.tr('Weet je zeker dat je deze reactie wilt verwijderen?', 'Are you sure you want to delete this comment?')),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuleren')),
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(context.tr('Annuleren', 'Cancel'))),
             TextButton(
               onPressed: () {
                 Provider.of<ProfileProvider>(context, listen: false)
                     .deleteComment(widget.profile.id!, widget.date, comment.id);
                 Navigator.pop(context);
               },
-              child: const Text('Verwijderen', style: TextStyle(color: Colors.red)),
+              child: Text(context.tr('Verwijderen', 'Delete'), style: const TextStyle(color: Colors.red)),
             ),
           ],
         );
@@ -500,9 +501,9 @@ class __PhotoPageState extends State<_PhotoPage> {
         final allComments = snapshot.data!.docs.map((doc) => CommentModel.fromDocument(doc)).toList();
 
         if (allComments.isEmpty) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 20.0),
-            child: Center(child: Text('Wees de eerste die reageert!')),
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20.0),
+            child: Center(child: Text(context.tr('Wees de eerste die reageert!', 'Be the first to comment!'))),
           );
         }
 
@@ -577,13 +578,13 @@ class __PhotoPageState extends State<_PhotoPage> {
                   children: [
                     GestureDetector(
                       onTap: () => _startReply(comment),
-                      child: Text('Reageer', style: TextStyle(fontSize: 12, color: Theme.of(context).primaryColor, fontWeight: FontWeight.bold)),
+                      child: Text(context.tr('Reageer', 'Reply'), style: TextStyle(fontSize: 12, color: Theme.of(context).primaryColor, fontWeight: FontWeight.bold)),
                     ),
                     if (isCommentOwner) ...[
                       const SizedBox(width: 16),
                       GestureDetector(
                         onTap: () => _showCommentOptions(comment),
-                        child: Text('Opties', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5))),
+                        child: Text(context.tr('Opties', 'Options'), style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5))),
                       ),
                     ],
                   ],
@@ -633,7 +634,7 @@ class __PhotoPageState extends State<_PhotoPage> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Antwoorden op $_replyingToUserName', style: TextStyle(color: Theme.of(context).primaryColor, fontSize: 12)),
+                Text('${context.tr('Antwoorden op', 'Replying to')} $_replyingToUserName', style: TextStyle(color: Theme.of(context).primaryColor, fontSize: 12)),
                 const SizedBox(width: 8),
                 GestureDetector(
                   onTap: _cancelReply,
@@ -649,7 +650,7 @@ class __PhotoPageState extends State<_PhotoPage> {
                 controller: _commentController,
                 focusNode: _commentFocusNode,
                 decoration: InputDecoration(
-                  hintText: 'Schrijf een reactie...',
+                  hintText: context.tr('Schrijf een reactie...', 'Write a comment...'),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
                   ),

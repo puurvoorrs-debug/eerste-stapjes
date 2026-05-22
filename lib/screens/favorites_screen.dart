@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/profile.dart';
 import '../models/daily_entry.dart';
+import '../providers/locale_provider.dart';
 import 'calendar_screen.dart';
 
 class FavoritesScreen extends StatelessWidget {
@@ -24,19 +25,19 @@ class FavoritesScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mijn Favorieten', style: TextStyle(fontFamily: 'Pacifico', fontSize: 22)),
+        title: Text(context.tr('Mijn Favorieten', 'My Favorites'), style: const TextStyle(fontFamily: 'Pacifico', fontSize: 22)),
       ),
       body: favoriteEntries.isEmpty
-          ? const Center(
+          ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.star_border, size: 80, color: Colors.grey),
-                  SizedBox(height: 20),
+                  const Icon(Icons.star_border, size: 80, color: Colors.grey),
+                  const SizedBox(height: 20),
                   Text(
-                    'Je hebt nog geen favorieten gemarkeerd.',
+                    context.tr('Je hebt nog geen favorieten gemarkeerd.', 'You have not marked any favorites yet.'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                    style: const TextStyle(fontSize: 18, color: Colors.grey),
                   ),
                 ],
               ),
@@ -60,7 +61,7 @@ class FavoritesScreen extends StatelessWidget {
                     footer: GridTileBar(
                       backgroundColor: Colors.black54,
                       title: Text(
-                        DateFormat('d MMM yyyy', 'nl_NL').format(entry.key),
+                        DateFormat('d MMM yyyy', context.tr('nl_NL', 'en_US')).format(entry.key),
                         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                         ),
                     ),

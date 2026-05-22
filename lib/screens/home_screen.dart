@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/profile.dart';
 import '../providers/profile_provider.dart';
+import '../providers/locale_provider.dart';
 import 'create_profile_screen.dart';
 import 'calendar_screen.dart';
 
@@ -53,9 +54,9 @@ class HomeScreen extends StatelessWidget {
               child: const Icon(Icons.add, color: Colors.white, size: 50),
             ),
             const SizedBox(height: 15),
-            const Text(
-              'Profiel toevoegen',
-              style: TextStyle(color: Colors.white, fontSize: 18),
+            Text(
+              context.tr('Profiel toevoegen', 'Add profile'),
+              style: const TextStyle(color: Colors.white, fontSize: 18),
             ),
           ],
         ),
@@ -70,7 +71,7 @@ class HomeScreen extends StatelessWidget {
             MaterialPageRoute(builder: (context) => const CreateProfileScreen()),
           ),
           icon: const Icon(Icons.add_circle_outline, color: Colors.white, size: 20),
-          label: const Text('Nog een profiel aanmaken', style: TextStyle(color: Colors.white, fontSize: 16)),
+          label: Text(context.tr('Nog een profiel aanmaken', 'Create another profile'), style: const TextStyle(color: Colors.white, fontSize: 16)),
         );
     }
 
@@ -90,17 +91,17 @@ class HomeScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text(
-                'Mijn',
-                style: TextStyle(
+              Text(
+                context.tr('Mijn', 'My'),
+                style: const TextStyle(
                   fontFamily: 'Pacifico',
                   fontSize: 35,
                   color: Colors.white,
                 ),
               ),
-              const Text(
-                'eerste stapjes',
-                style: TextStyle(
+              Text(
+                context.tr('eerste stapjes', 'first steps'),
+                style: const TextStyle(
                   fontFamily: 'Pacifico',
                   fontSize: 45,
                   color: Colors.white,

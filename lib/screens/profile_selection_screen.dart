@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../providers/locale_provider.dart';
 import '../providers/profile_provider.dart';
 import '../services/auth_service.dart';
 import '../models/profile.dart';
@@ -21,12 +22,12 @@ class ProfileSelectionScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Profiel Incompleet'),
+        title: Text(context.tr('Profiel Incompleet', 'Profile Incomplete')),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Annuleren'),
+            child: Text(context.tr('Annuleren', 'Cancel')),
           ),
           ElevatedButton(
             onPressed: () {
@@ -36,7 +37,7 @@ class ProfileSelectionScreen extends StatelessWidget {
                 MaterialPageRoute(builder: (context) => const AccountSettingsScreen()),
               );
             },
-            child: const Text('Naar Instellingen'),
+            child: Text(context.tr('Naar Instellingen', 'To Settings')),
           ),
         ],
       ),
@@ -50,17 +51,17 @@ class ProfileSelectionScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Profiel Volgen'),
+        title: Text(context.tr('Profiel Volgen', 'Follow Profile')),
         content: TextField(
           controller: codeController,
-          decoration: const InputDecoration(
-            labelText: 'Voer de unieke code in',
+          decoration: InputDecoration(
+            labelText: context.tr('Voer de unieke code in', 'Enter the unique code'),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Annuleren'),
+            child: Text(context.tr('Annuleren', 'Cancel')),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -71,20 +72,20 @@ class ProfileSelectionScreen extends StatelessWidget {
                   String message;
                   switch (result) {
                     case 'request_sent':
-                      message = 'Volgverzoek verstuurd! Je krijgt toegang zodra de eigenaar dit goedkeurt.';
+                      message = context.tr('Volgverzoek verstuurd! Je krijgt toegang zodra de eigenaar dit goedkeurt.', 'Follow request sent! You will get access once the owner approves it.');
                       break;
                     case 'already_requested':
-                      message = 'Je hebt al een openstaand volgverzoek voor dit profiel.';
+                      message = context.tr('Je hebt al een openstaand volgverzoek voor dit profiel.', 'You already have a pending follow request for this profile.');
                       break;
                     case 'already_following':
-                      message = 'Je volgt dit profiel al.';
+                      message = context.tr('Je volgt dit profiel al.', 'You are already following this profile.');
                       break;
                     case 'own_profile':
-                      message = 'Je kunt je eigen profiel niet volgen.';
+                      message = context.tr('Je kunt je eigen profiel niet volgen.', 'You cannot follow your own profile.');
                       break;
                     case 'invalid_code':
                     default:
-                      message = 'Ongeldige code. Controleer de code en probeer het opnieuw.';
+                      message = context.tr('Ongeldige code. Controleer de code en probeer het opnieuw.', 'Invalid code. Please check the code and try again.');
                   }
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text(message)),
@@ -93,18 +94,21 @@ class ProfileSelectionScreen extends StatelessWidget {
               } on IncompleteProfileException catch (e) {
                 if (context.mounted) {
                   Navigator.pop(context);
-                  _showIncompleteProfileDialog(context, e.message);
+                  final translatedMessage = e.message.contains('niet gevonden')
+                      ? context.tr('Gebruikersprofiel niet gevonden.', 'User profile not found.')
+                      : context.tr('Update je profiel met een naam en foto om anderen te volgen.', 'Update your profile with a name and photo to follow others.');
+                  _showIncompleteProfileDialog(context, translatedMessage);
                 }
               } catch (e) {
                  if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Er is een onbekende fout opgetreden.')),
+                    SnackBar(content: Text(context.tr('Er is een onbekende fout opgetreden.', 'An unknown error occurred.'))),
                   );
                 }
               }
             },
-            child: const Text('Volgen'),
+            child: Text(context.tr('Volgen', 'Follow')),
           ),
         ],
       ),
@@ -115,12 +119,12 @@ class ProfileSelectionScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Profiel Ontvolgen'),
-        content: Text('Weet je zeker dat je ${profile.name} wilt ontvolgen? Je kunt de momenten van dit profiel dan niet meer bekijken.'),
+        title: Text(context.tr('Profiel Ontvolgen', 'Unfollow Profile')),
+        content: Text(context.tr('Weet je zeker dat je ${profile.name} wilt ontvolgen? Je kunt de momenten van dit profiel dan niet meer bekijken.', 'Are you sure you want to unfollow ${profile.name}? You will no longer be able to view the moments of this profile.')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Annuleren'),
+            child: Text(context.tr('Annuleren', 'Cancel')),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red[300]),
@@ -131,19 +135,19 @@ class ProfileSelectionScreen extends StatelessWidget {
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Je bent gestopt met volgen.')),
+                    SnackBar(content: Text(context.tr('Je bent gestopt met volgen.', 'You stopped following.'))),
                   );
                 }
               } catch (e) {
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Er is een onbekende fout opgetreden.')),
+                    SnackBar(content: Text(context.tr('Er is een onbekende fout opgetreden.', 'An unknown error occurred.'))),
                   );
                 }
               }
             },
-            child: const Text('Ontvolgen'),
+            child: Text(context.tr('Ontvolgen', 'Unfollow')),
           ),
         ],
       ),
@@ -156,7 +160,7 @@ class ProfileSelectionScreen extends StatelessWidget {
     final theme = Theme.of(context);
 
     // Get display name or default to user
-    final displayName = currentUser?.displayName?.split(' ').first ?? 'Gebruiker';
+    final displayName = currentUser?.displayName?.split(' ').first ?? context.tr('Gebruiker', 'User');
 
     return Scaffold(
       body: SafeArea(
@@ -176,14 +180,17 @@ class ProfileSelectionScreen extends StatelessWidget {
                             const AnimatedFootstepsCircle(size: 80),
                             const SizedBox(height: 24),
                             Text(
-                              'Welkom!',
+                              context.tr('Welkom!', 'Welcome!'),
                               style: theme.textTheme.headlineSmall?.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              'Maak een eigen profiel aan om momenten bij te houden, of volg iemand om zijn of haar momenten te bekijken.',
+                              context.tr(
+                                'Maak een eigen profiel aan om momenten bij te houden, of volg iemand om zijn of haar momenten te bekijken.',
+                                'Create your own profile to keep track of moments, or follow someone to view their moments.',
+                              ),
                               textAlign: TextAlign.center,
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 color: theme.colorScheme.onSurface.withOpacity(0.6),
@@ -194,7 +201,7 @@ class ProfileSelectionScreen extends StatelessWidget {
                             // Nieuw profiel aanmaken
                             FilledButton.icon(
                               icon: const Icon(Icons.add),
-                              label: const Text('Nieuw profiel aanmaken'),
+                              label: Text(context.tr('Nieuw profiel aanmaken', 'Create new profile')),
                               onPressed: () {
                                 Navigator.push(
                                   context,
@@ -213,7 +220,7 @@ class ProfileSelectionScreen extends StatelessWidget {
                             // Profiel volgen
                             OutlinedButton.icon(
                               icon: const Icon(Icons.person_add_alt_1_outlined),
-                              label: const Text('Profiel volgen'),
+                              label: Text(context.tr('Profiel volgen', 'Follow profile')),
                               onPressed: () => _showFollowDialog(context),
                               style: OutlinedButton.styleFrom(
                                 minimumSize: const Size(double.infinity, 54),
@@ -244,26 +251,26 @@ class ProfileSelectionScreen extends StatelessWidget {
                           const SizedBox(height: 24),
                           if (hasOwnProfiles) ...[
                             // --- Normal layout when user has own profiles ---
-                            const Text(
-                              'Mijn Profielen',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            Text(
+                              context.tr('Mijn Profielen', 'My Profiles'),
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 16),
                             _buildOwnProfilesSection(ownProfiles, context),
                             const SizedBox(height: 32),
                             if (followedProfiles.isNotEmpty) ...[
-                              const Text(
-                                'Gevolgde Profielen',
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              Text(
+                                context.tr('Gevolgde Profielen', 'Followed Profiles'),
+                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                               ),
                               const SizedBox(height: 16),
                               _buildFollowedProfilesSection(followedProfiles, context),
                             ],
                           ] else if (followedProfiles.isNotEmpty) ...[
                             // --- Prominent layout when user only follows profiles ---
-                            const Text(
-                              'Gevolgde Profielen',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            Text(
+                              context.tr('Gevolgde Profielen', 'Followed Profiles'),
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 16),
                             _buildFollowedProfilesProminentSection(followedProfiles, context),
@@ -322,7 +329,7 @@ class ProfileSelectionScreen extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            'Hoi, $name 👋',
+            context.tr('Hoi, $name 👋', 'Hi, $name 👋'),
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.bold,
               fontSize: 20,
@@ -337,7 +344,7 @@ class ProfileSelectionScreen extends StatelessWidget {
                 onPressed: () {
                   Navigator.push(context, MaterialPageRoute(builder: (context) => const AccountSettingsScreen()));
                 },
-                tooltip: 'Instellingen',
+                tooltip: context.tr('Instellingen', 'Settings'),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
@@ -347,7 +354,7 @@ class ProfileSelectionScreen extends StatelessWidget {
                 onPressed: () async {
                   await authService.signOut();
                 },
-                tooltip: 'Uitloggen',
+                tooltip: context.tr('Uitloggen', 'Logout'),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
@@ -389,7 +396,7 @@ class ProfileSelectionScreen extends StatelessWidget {
                   MaterialPageRoute(builder: (context) => const NotificationsScreen()),
                 );
               },
-              tooltip: 'Meldingen',
+              tooltip: context.tr('Meldingen', 'Notifications'),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
             ),
@@ -516,7 +523,7 @@ class ProfileSelectionScreen extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
-                    'Bekijk momenten',
+                    context.tr('Bekijk momenten', 'View moments'),
                     style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7), fontSize: 13),
                   ),
                 ],
@@ -576,7 +583,7 @@ class ProfileSelectionScreen extends StatelessWidget {
             Icon(Icons.add, size: 40, color: theme.primaryColor),
             const SizedBox(height: 8),
             Text(
-              'Nieuw\nprofiel',
+              context.tr('Nieuw\nprofiel', 'New\nprofile'),
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: theme.textTheme.bodyLarge?.color,
@@ -683,7 +690,7 @@ class ProfileSelectionScreen extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                           Text(
-                            'Bekijk momenten',
+                            context.tr('Bekijk momenten', 'View moments'),
                             style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7), fontSize: 13),
                           ),
                         ],
@@ -769,7 +776,7 @@ class ProfileSelectionScreen extends StatelessWidget {
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       Text(
-                        'Bekijk profiel', // Ideally shows "Nieuwe update" or "2 dagen geleden"
+                        context.tr('Bekijk profiel', 'View profile'), // Ideally shows "Nieuwe update" or "2 dagen geleden"
                         style: TextStyle(color: Colors.grey[600], fontSize: 13),
                       ),
                     ],
@@ -789,7 +796,7 @@ class ProfileSelectionScreen extends StatelessWidget {
                 IconButton(
                   icon: const Icon(Icons.person_remove_outlined),
                   color: Colors.red[300],
-                  tooltip: 'Ontvolgen',
+                  tooltip: context.tr('Ontvolgen', 'Unfollow'),
                   onPressed: () {
                     _showUnfollowDialog(context, profile);
                   },
@@ -805,7 +812,7 @@ class ProfileSelectionScreen extends StatelessWidget {
   Widget _buildFollowProfileButton(BuildContext context, ThemeData theme) {
     return OutlinedButton.icon(
       icon: const Icon(Icons.person_add_alt_1_outlined),
-      label: const Text('Profiel volgen'),
+      label: Text(context.tr('Profiel volgen', 'Follow profile')),
       onPressed: () => _showFollowDialog(context),
       style: OutlinedButton.styleFrom(
         minimumSize: const Size(double.infinity, 56), // Full width

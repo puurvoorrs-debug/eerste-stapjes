@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/profile.dart';
 import '../models/user_model.dart';
 import '../providers/profile_provider.dart';
+import '../providers/locale_provider.dart';
 
 class FollowersScreen extends StatelessWidget {
   final Profile profile;
@@ -25,7 +26,7 @@ class FollowersScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Volgers van ${profile.name}'),
+        title: Text(context.tr('Volgers van ${profile.name}', 'Followers of ${profile.name}')),
       ),
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
@@ -37,7 +38,7 @@ class FollowersScreen extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
           if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(child: Text('Kon profieldata niet laden.'));
+            return Center(child: Text(context.tr('Kon profieldata niet laden.', 'Could not load profile data.')));
           }
 
           final data = snapshot.data!.data() as Map<String, dynamic>;
@@ -56,7 +57,7 @@ class FollowersScreen extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8.0, top: 4.0),
                   child: Text(
-                    'Openstaande volgverzoeken (${pendingRequests.length})',
+                    '${context.tr('Openstaande volgverzoeken', 'Pending follow requests')} (${pendingRequests.length})',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -65,7 +66,7 @@ class FollowersScreen extends StatelessWidget {
                 ...pendingRequests.map((entry) {
                   final userId = entry.key;
                   final reqData = entry.value as Map<String, dynamic>;
-                  final name = reqData['name'] ?? 'Onbekend';
+                  final name = reqData['name'] ?? context.tr('Onbekend', 'Unknown');
                   final photoUrl = reqData['photoUrl'] ?? '';
 
                   return Card(
@@ -80,14 +81,14 @@ class FollowersScreen extends StatelessWidget {
                             : null,
                       ),
                       title: Text(name),
-                      subtitle: const Text('Wil dit profiel volgen'),
+                      subtitle: Text(context.tr('Wil dit profiel volgen', 'Wants to follow this profile')),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
                             icon: const Icon(Icons.check_circle,
                                 color: Colors.green, size: 28),
-                            tooltip: 'Accepteren',
+                            tooltip: context.tr('Accepteren', 'Accept'),
                             onPressed: () =>
                                 profileProvider.respondToFollowRequest(
                                     profile.id!, userId, 'approved'),
@@ -95,7 +96,7 @@ class FollowersScreen extends StatelessWidget {
                           IconButton(
                             icon: const Icon(Icons.cancel,
                                 color: Colors.red, size: 28),
-                            tooltip: 'Weigeren',
+                            tooltip: context.tr('Weigeren', 'Reject'),
                             onPressed: () =>
                                 profileProvider.respondToFollowRequest(
                                     profile.id!, userId, 'rejected'),
@@ -112,18 +113,18 @@ class FollowersScreen extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(bottom: 8.0, top: 4.0),
                 child: Text(
-                  'Volgers (${followerIds.length})',
+                  '${context.tr('Volgers', 'Followers')} (${followerIds.length})',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                 ),
               ),
               if (followerIds.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20.0),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20.0),
                   child: Center(
                     child: Text(
-                        'Dit profiel heeft nog geen bevestigde volgers.'),
+                        context.tr('Dit profiel heeft nog geen bevestigde volgers.', 'This profile has no confirmed followers yet.')),
                   ),
                 )
               else
@@ -136,8 +137,8 @@ class FollowersScreen extends StatelessWidget {
                     }
                     if (!followerSnapshot.hasData ||
                         followerSnapshot.data!.isEmpty) {
-                      return const Center(
-                          child: Text('Geen volgersinformatie gevonden.'));
+                      return Center(
+                          child: Text(context.tr('Geen volgersinformatie gevonden.', 'No follower information found.')));
                     }
                     return Column(
                       children: followerSnapshot.data!

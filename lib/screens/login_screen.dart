@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../services/auth_service.dart';
+import '../providers/locale_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -76,7 +77,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               ),
               const SizedBox(height: 20),
               Text(
-                'Eerste stapjes',
+                context.tr('Eerste stapjes', 'First steps'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 28, 
@@ -87,7 +88,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               ),
               const SizedBox(height: 10),
               Text(
-                'Elke dag een stapje verder.',
+                context.tr('Elke dag een stapje verder.', 'Small steps, everyday.'),
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 16, color: Colors.grey[600]),
               ),
@@ -97,14 +98,14 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                   minimumSize: const Size(double.infinity, 56),
                 ),
                 icon: Image.asset('assets/google_logo.png', height: 24.0),
-                label: const Text('Login met Google', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                label: Text(context.tr('Login met Google', 'Login with Google'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 onPressed: () async {
                   final scaffoldMessenger = ScaffoldMessenger.of(context);
                   try {
                     await authService.signInWithGoogle();
                   } catch (e) {
                     scaffoldMessenger.showSnackBar(
-                      SnackBar(content: Text('Fout bij inloggen: $e')),
+                      SnackBar(content: Text(context.tr('Fout bij inloggen: $e', 'Error signing in: $e'))),
                     );
                   }
                 },

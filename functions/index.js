@@ -24,6 +24,109 @@ async function createNotification(userId, notificationId, data) {
   }
 }
 
+// Helper to get user's preferred language ('nl' or 'en')
+async function getUserLanguage(userId) {
+  try {
+    const userDoc = await admin.firestore().collection("users").doc(userId).get();
+    if (userDoc.exists) {
+      return userDoc.data().language || "nl";
+    }
+  } catch (e) {
+    console.error(`Error fetching language for user ${userId}:`, e);
+  }
+  return "nl";
+}
+
+// Centraal vertaal-systeem voor notificaties
+function getTranslation(key, language, params = {}) {
+  const translations = {
+    daily_reminder_title: {
+      nl: "Tijd voor een kiekje!",
+      en: "Time for a snapshot!",
+    },
+    daily_reminder_body: {
+      nl: "Je hebt vandaag nog geen foto van je kleintje geplaatst. Tijd voor de dagelijkse update!",
+      en: "You haven't posted a photo of your little one today. Time for the daily update!",
+    },
+    new_photo_title: {
+      nl: "Nieuwe foto!",
+      en: "New photo!",
+    },
+    new_photo_body: {
+      nl: `${params.posterName} heeft een nieuwe foto geplaatst voor ${params.profileName}.`,
+      en: `${params.posterName} posted a new photo for ${params.profileName}.`,
+    },
+    new_comment_title: {
+      nl: "Nieuwe reactie",
+      en: "New comment",
+    },
+    new_comment_body: {
+      nl: `${params.commenterName} heeft gereageerd op je foto.`,
+      en: `${params.commenterName} commented on your photo.`,
+    },
+    reply_title: {
+      nl: "Iemand reageerde op jouw reactie",
+      en: "Someone replied to your comment",
+    },
+    reply_body: {
+      nl: `${params.commenterName} heeft gereageerd op jouw reactie.`,
+      en: `${params.commenterName} replied to your comment.`,
+    },
+    new_like_title: {
+      nl: "Nieuwe like!",
+      en: "New like!",
+    },
+    new_like_body: {
+      nl: `${params.likerName} vindt je foto leuk.`,
+      en: `${params.likerName} liked your photo.`,
+    },
+    download_request_title: {
+      nl: "Download Aanvraag",
+      en: "Download Request",
+    },
+    download_request_body: {
+      nl: `${params.name} wil graag je foto van ${params.profileName} downloaden.`,
+      en: `${params.name} would like to download your photo of ${params.profileName}.`,
+    },
+    download_approved_title: {
+      nl: "Download Goedgekeurd!",
+      en: "Download Approved!",
+    },
+    download_approved_body: {
+      nl: `Je downloadverzoek voor de foto van ${params.profileName} is goedgekeurd. Je kunt de foto nu downloaden.`,
+      en: `Your download request for the photo of ${params.profileName} has been approved. You can download the photo now.`,
+    },
+    follow_request_title: {
+      nl: "Nieuw volgverzoek",
+      en: "New follow request",
+    },
+    follow_request_body: {
+      nl: `${params.name} wil het profiel van ${params.profileName} volgen.`,
+      en: `${params.name} wants to follow the profile of ${params.profileName}.`,
+    },
+    follow_approved_title: {
+      nl: "Volgverzoek geaccepteerd!",
+      en: "Follow request accepted!",
+    },
+    follow_approved_body: {
+      nl: `Je mag nu het profiel van ${params.profileName} bekijken.`,
+      en: `You can now view the profile of ${params.profileName}.`,
+    },
+    comment_like_title: {
+      nl: "Iemand vindt jouw reactie leuk!",
+      en: "Someone liked your comment!",
+    },
+    comment_like_body: {
+      nl: `${params.likerName} vindt jouw reactie leuk.`,
+      en: `${params.likerName} liked your comment.`,
+    },
+  };
+
+  const entry = translations[key];
+  if (!entry) return "";
+  return entry[language] || entry["nl"];
+}
+
 // Corrected Function: send daily photo reminders
 exports.sendDailyPhotoReminders = functions.pubsub
     .schedule("every day 09:00")
@@ -69,10 +172,11 @@ exports.sendDailyPhotoReminders = functions.pubsub
         const userDoc = await db.collection("users").doc(userId).get();
         if (userDoc.exists && userDoc.data().fcmToken) {
           const fcmToken = userDoc.data().fcmToken;
+          const language = userDoc.data().language || "nl";
           const message = {
             notification: {
-              title: "Tijd voor een kiekje!",
-              body: "Je hebt vandaag nog geen foto van je kleintje geplaatst. Tijd voor de dagelijkse update!",
+              title: getTranslation("daily_reminder_title", language),
+              body: getTranslation("daily_reminder_body", language),
             },
             token: fcmToken,
           };
@@ -120,7 +224,7 @@ exports.sendNotificationOnNewPhoto = functions.firestore
       const posterName = ownerDoc.exists ? (ownerDoc.data().displayName || "Iemand") : "Iemand";
       const posterPhotoUrl = ownerDoc.exists ? ownerDoc.data().photoUrl : null;
 
-      const tokens = [];
+      const messages = [];
       for (const followerId of followerIds) {
         // Don't send notification to the person who posted
         if (followerId === ownerId) continue;
@@ -137,30 +241,30 @@ exports.sendNotificationOnNewPhoto = functions.firestore
 
         const followerDoc = await admin.firestore().collection("users").doc(followerId).get();
         if (followerDoc.exists && followerDoc.data().fcmToken) {
-          tokens.push(followerDoc.data().fcmToken);
+          const fcmToken = followerDoc.data().fcmToken;
+          const language = followerDoc.data().language || "nl";
+          messages.push({
+            notification: {
+              title: getTranslation("new_photo_title", language),
+              body: getTranslation("new_photo_body", language, { posterName, profileName }),
+            },
+            token: fcmToken,
+            data: {
+              type: "new_post",
+              entryId: entryId,
+              profileId: profileId,
+            },
+          });
         }
       }
 
-      if (tokens.length === 0) {
+      if (messages.length === 0) {
         console.log("No followers with FCM tokens found.");
         return;
       }
 
-      const message = {
-        notification: {
-          title: "Nieuwe foto!",
-          body: `${posterName} heeft een nieuwe foto geplaatst voor ${profileName}.`,
-        },
-        tokens: tokens,
-        data: {
-          type: "new_post",
-          entryId: entryId,
-          profileId: profileId,
-        },
-      };
-
       try {
-        await admin.messaging().sendEachForMulticast(message);
+        await admin.messaging().sendEach(messages);
         console.log("Successfully sent new photo notifications to followers.");
       } catch (error) {
         console.error("Error sending new photo notifications:", error);
@@ -210,10 +314,11 @@ exports.sendNotificationOnNewComment = functions.firestore
 
         const ownerUserDoc = await admin.firestore().collection("users").doc(ownerId).get();
         if (ownerUserDoc.exists && ownerUserDoc.data().fcmToken) {
+          const language = ownerUserDoc.data().language || "nl";
           const ownerMessage = {
             notification: {
-              title: "Nieuwe reactie",
-              body: `${commenterName} heeft gereageerd op je foto.`,
+              title: getTranslation("new_comment_title", language),
+              body: getTranslation("new_comment_body", language, { commenterName }),
             },
             token: ownerUserDoc.data().fcmToken,
             data: notificationData,
@@ -252,10 +357,11 @@ exports.sendNotificationOnNewComment = functions.firestore
 
             const parentAuthorDoc = await admin.firestore().collection("users").doc(parentAuthorId).get();
             if (parentAuthorDoc.exists && parentAuthorDoc.data().fcmToken) {
+              const language = parentAuthorDoc.data().language || "nl";
               const replyMessage = {
                 notification: {
-                  title: "Iemand reageerde op jouw reactie",
-                  body: `${commenterName} heeft gereageerd op jouw reactie.`,
+                  title: getTranslation("reply_title", language),
+                  body: getTranslation("reply_body", language, { commenterName }),
                 },
                 token: parentAuthorDoc.data().fcmToken,
                 data: notificationData,
@@ -327,11 +433,12 @@ exports.sendNotificationOnNewLike = functions.firestore
         return;
       }
       const fcmToken = ownerUserDoc.data().fcmToken;
+      const language = ownerUserDoc.data().language || "nl";
 
       const message = {
         notification: {
-          title: "Nieuwe like!",
-          body: `${likerName} vindt je foto leuk.`,
+          title: getTranslation("new_like_title", language),
+          body: getTranslation("new_like_body", language, { likerName }),
         },
         token: fcmToken,
         data: {
@@ -389,10 +496,11 @@ exports.sendNotificationOnDownloadRequestUpdate = functions.firestore
 
           const ownerUserDoc = await admin.firestore().collection("users").doc(ownerId).get();
           if (ownerUserDoc.exists && ownerUserDoc.data().fcmToken) {
+            const language = ownerUserDoc.data().language || "nl";
             const message = {
               notification: {
-                title: "Download Aanvraag",
-                body: `${name} wil graag je foto van ${profileName} downloaden.`,
+                title: getTranslation("download_request_title", language),
+                body: getTranslation("download_request_body", language, { name, profileName }),
               },
               token: ownerUserDoc.data().fcmToken,
               data: {
@@ -423,10 +531,11 @@ exports.sendNotificationOnDownloadRequestUpdate = functions.firestore
 
           const requesterUserDoc = await admin.firestore().collection("users").doc(userId).get();
           if (requesterUserDoc.exists && requesterUserDoc.data().fcmToken) {
+             const language = requesterUserDoc.data().language || "nl";
              const message = {
               notification: {
-                title: "Download Goedgekeurd!",
-                body: `Je downloadverzoek voor de foto van ${profileName} is goedgekeurd. Je kunt de foto nu downloaden.`,
+                title: getTranslation("download_approved_title", language),
+                body: getTranslation("download_approved_body", language, { profileName }),
               },
               token: requesterUserDoc.data().fcmToken,
               data: {
@@ -492,10 +601,11 @@ exports.sendNotificationOnFollowRequestUpdate = functions.firestore
 
           const ownerDoc = await admin.firestore().collection("users").doc(ownerId).get();
           if (ownerDoc.exists && ownerDoc.data().fcmToken) {
+            const language = ownerDoc.data().language || "nl";
             const message = {
               notification: {
-                title: "Nieuw volgverzoek",
-                body: `${name} wil het profiel van ${profileName} volgen.`,
+                title: getTranslation("follow_request_title", language),
+                body: getTranslation("follow_request_body", language, { name, profileName }),
               },
               token: ownerDoc.data().fcmToken,
               data: {
@@ -540,10 +650,11 @@ exports.sendNotificationOnFollowRequestUpdate = functions.firestore
 
         const requesterDoc = await admin.firestore().collection("users").doc(newFollowerId).get();
         if (requesterDoc.exists && requesterDoc.data().fcmToken) {
+          const language = requesterDoc.data().language || "nl";
           const message = {
             notification: {
-              title: "Volgverzoek geaccepteerd!",
-              body: `Je mag nu het profiel van ${profileName} bekijken.`,
+              title: getTranslation("follow_approved_title", language),
+              body: getTranslation("follow_approved_body", language, { profileName }),
             },
             token: requesterDoc.data().fcmToken,
             data: {
@@ -604,11 +715,12 @@ exports.sendNotificationOnCommentLike = functions.firestore
       if (!authorDoc.exists || !authorDoc.data().fcmToken) {
         return;
       }
+      const language = authorDoc.data().language || "nl";
 
       const message = {
         notification: {
-          title: "Iemand vindt jouw reactie leuk!",
-          body: `${likerName} vindt jouw reactie leuk.`,
+          title: getTranslation("comment_like_title", language),
+          body: getTranslation("comment_like_body", language, { likerName }),
         },
         token: authorDoc.data().fcmToken,
         data: {

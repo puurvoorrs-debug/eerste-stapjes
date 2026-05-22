@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/profile.dart';
 import '../models/daily_entry.dart';
 import 'photo_detail_screen.dart';
+import '../providers/locale_provider.dart';
 
 class DailyEntryDetailScreen extends StatefulWidget {
   final String entryId;
@@ -38,7 +39,7 @@ class _DailyEntryDetailScreenState extends State<DailyEntryDetailScreen> {
       // 1. Haal het profiel op
       final profileDoc = await firestore.collection('profiles').doc(widget.profileId).get();
       if (!profileDoc.exists) {
-        throw Exception('Profiel niet gevonden.');
+        throw Exception(context.tr('Profiel niet gevonden.', 'Profile not found.'));
       }
       final profile = Profile.fromMap(profileDoc.data()!, profileDoc.id);
       final profileData = profileDoc.data()!;
@@ -55,7 +56,7 @@ class _DailyEntryDetailScreenState extends State<DailyEntryDetailScreen> {
             _isLoading = false;
             _isPermissionError = true;
             _errorMessage =
-                'Je hebt geen toegang meer tot dit profiel. Mogelijk is je volgverzoek nog niet goedgekeurd of ben je ontvolgt.';
+                context.tr('Je hebt geen toegang meer tot dit profiel. Mogelijk is je volgverzoek nog niet goedgekeurd of ben je ontvolgt.', 'You no longer have access to this profile. Your follow request may not be approved yet, or you have been unfollowed.');
           });
         }
         return;
@@ -95,15 +96,15 @@ class _DailyEntryDetailScreenState extends State<DailyEntryDetailScreen> {
           _isLoading = false;
           _isPermissionError = e.code == 'permission-denied';
           _errorMessage = _isPermissionError
-              ? 'Je hebt geen toegang tot dit profiel. Mogelijk is je volgverzoek nog niet goedgekeurd.'
-              : 'Fout bij openen van post: ${e.message}';
+              ? context.tr('Je hebt geen toegang tot dit profiel. Mogelijk is je volgverzoek nog niet goedgekeurd.', 'You do not have access to this profile. Your follow request may not be approved yet.')
+              : '${context.tr('Fout bij openen van post', 'Error opening post')}: ${e.message}';
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = 'Fout bij openen van post: $e';
+          _errorMessage = '${context.tr('Fout bij openen van post', 'Error opening post')}: $e';
         });
       }
     }
@@ -113,18 +114,18 @@ class _DailyEntryDetailScreenState extends State<DailyEntryDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Post Laden...'),
+        title: Text(context.tr('Post Laden...', 'Loading Post...')),
       ),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: _isLoading
-              ? const Column(
+              ? Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 20),
-                    Text('Post wordt opgehaald...'),
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 20),
+                    Text(context.tr('Post wordt opgehaald...', 'Retrieving post...')),
                   ],
                 )
               : Column(
@@ -149,7 +150,7 @@ class _DailyEntryDetailScreenState extends State<DailyEntryDetailScreen> {
                     const SizedBox(height: 30),
                     ElevatedButton.icon(
                       icon: const Icon(Icons.arrow_back),
-                      label: const Text('Terug'),
+                      label: Text(context.tr('Terug', 'Back')),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                   ],

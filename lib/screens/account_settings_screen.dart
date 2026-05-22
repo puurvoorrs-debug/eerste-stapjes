@@ -4,7 +4,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import '../models/user_model.dart';
+import '../providers/locale_provider.dart';
 
 class AccountSettingsScreen extends StatefulWidget {
   const AccountSettingsScreen({super.key});
@@ -80,14 +82,14 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profiel bijgewerkt!')),
+          SnackBar(content: Text(context.tr('Profiel bijgewerkt!', 'Profile updated!'))),
         );
         Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fout bij het bijwerken van profiel: $e')),
+          SnackBar(content: Text('${context.tr('Fout bij het bijwerken van profiel', 'Error updating profile')}: $e')),
         );
       }
     } finally {
@@ -105,7 +107,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Accountinstellingen'),
+        title: Text(context.tr('Accountinstellingen', 'Account settings')),
       ),
       body: _currentUserModel == null
           ? const Center(child: CircularProgressIndicator())
@@ -158,19 +160,50 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                     const SizedBox(height: 40),
                     Align(
                       alignment: Alignment.centerLeft,
-                      child: Text('Accountnaam', style: theme.textTheme.titleMedium),
+                      child: Text(context.tr('Accountnaam', 'Account name'), style: theme.textTheme.titleMedium),
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _nameController,
-                      decoration: const InputDecoration(
-                        hintText: 'Jouw naam',
+                      decoration: InputDecoration(
+                        hintText: context.tr('Jouw naam', 'Your name'),
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return 'Voer een accountnaam in';
+                          return context.tr('Voer een accountnaam in', 'Please enter an account name');
                         }
                         return null;
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(context.tr('Taal', 'Language'), style: theme.textTheme.titleMedium),
+                    ),
+                    const SizedBox(height: 8),
+                    Consumer<LocaleProvider>(
+                      builder: (context, localeProvider, child) {
+                        return DropdownButtonFormField<String>(
+                          value: localeProvider.locale.languageCode,
+                          decoration: const InputDecoration(
+                            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          ),
+                          items: [
+                            DropdownMenuItem(
+                              value: 'nl',
+                              child: Text(context.tr('Nederlands', 'Dutch')),
+                            ),
+                            DropdownMenuItem(
+                              value: 'en',
+                              child: Text(context.tr('Engels', 'English')),
+                            ),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              localeProvider.setLocale(Locale(val));
+                            }
+                          },
+                        );
                       },
                     ),
                     const SizedBox(height: 40),
@@ -182,7 +215,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                         style: ElevatedButton.styleFrom(
                           minimumSize: const Size(double.infinity, 56),
                         ),
-                        child: const Text('Opslaan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        child: Text(context.tr('Opslaan', 'Save'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
                   ],
                 ),

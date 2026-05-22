@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../providers/locale_provider.dart';
 import '../models/profile.dart';
 import '../models/daily_entry.dart';
 import '../providers/profile_provider.dart';
@@ -103,7 +104,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser?.uid != widget.profile.ownerId) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Alleen de eigenaar kan foto\'s toevoegen.')),
+        SnackBar(content: Text(context.tr('Alleen de eigenaar kan foto\'s toevoegen.', 'Only the owner can add photos.'))),
       );
       return;
     }
@@ -117,22 +118,22 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final description = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Voeg een beschrijving toe'),
+        title: Text(context.tr('Voeg een beschrijving toe', 'Add a description')),
         content: Form(
           key: formKey,
           child: TextFormField(
             controller: descriptionController,
-            decoration: const InputDecoration(labelText: 'Beschrijving (optioneel)'),
+            decoration: InputDecoration(labelText: context.tr('Beschrijving (optioneel)', 'Description (optional)')),
             maxLines: 3,
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Annuleren')),
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(context.tr('Annuleren', 'Cancel'))),
           ElevatedButton(
             onPressed: () {
               Navigator.of(context).pop(descriptionController.text);
             },
-            child: const Text('Opslaan'),
+            child: Text(context.tr('Opslaan', 'Save')),
           ),
         ],
       ),
@@ -149,7 +150,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         );
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Fout bij uploaden: $e")));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${context.tr('Fout bij uploaden', 'Error uploading')}: $e")));
         }
       }
     }
@@ -188,7 +189,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
               title: Text(
-                'Deel profiel van ${profile.name}',
+                context.tr('Deel profiel van ${profile.name}', 'Share ${profile.name}\'s profile'),
                 textAlign: TextAlign.center,
                 style: GoogleFonts.quicksand(
                   fontWeight: FontWeight.bold,
@@ -212,7 +213,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Deel deze unieke code met familie of vrienden zodat zij de stapjes van ${profile.name} kunnen volgen:',
+                    context.tr(
+                      'Deel deze unieke code met familie of vrienden zodat zij de stapjes van ${profile.name} kunnen volgen:',
+                      'Share this unique code with family or friends so they can follow ${profile.name}\'s steps:',
+                    ),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 14,
@@ -253,7 +257,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   ),
-                  child: const Text('Sluiten'),
+                  child: Text(context.tr('Sluiten', 'Close')),
                 ),
                 ElevatedButton.icon(
                   onPressed: () {
@@ -269,9 +273,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       }
                     });
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Deelbare code gekopieerd naar klembord!'),
-                        duration: Duration(seconds: 2),
+                      SnackBar(
+                        content: Text(context.tr('Deelbare code gekopieerd naar klembord!', 'Shareable code copied to clipboard!')),
+                        duration: const Duration(seconds: 2),
                       ),
                     );
                   },
@@ -279,7 +283,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   ),
                   icon: Icon(copied ? Icons.check : Icons.copy_rounded),
-                  label: Text(copied ? 'Gekopieerd!' : 'Kopieer code'),
+                  label: Text(copied ? context.tr('Gekopieerd!', 'Copied!') : context.tr('Kopieer code', 'Copy code')),
                 ),
               ],
             );
@@ -313,7 +317,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               if (isOwner)
                 IconButton(
                   icon: const Icon(Icons.people_alt_outlined),
-                  tooltip: 'Volgers',
+                  tooltip: context.tr('Volgers', 'Followers'),
                   onPressed: () {
                     Navigator.push(
                       context,
@@ -324,7 +328,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               if (isOwner && profile.shareCode != null)
                 IconButton(
                   icon: const Icon(Icons.share),
-                  tooltip: 'Deel Profiel',
+                  tooltip: context.tr('Deel Profiel', 'Share Profile'),
                   onPressed: () => _showShareCodeDialog(context, profile),
                 ),
               IconButton(
@@ -384,7 +388,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     ],
                   ),
                   child: TableCalendar(
-                    locale: 'nl_NL',
+                    locale: context.tr('nl_NL', 'en_US'),
                     firstDay: profile.dateOfBirth,
                     lastDay: DateTime.now().add(const Duration(days: 365)),
                     focusedDay: _focusedDay,
@@ -398,10 +402,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       });
                     },
                     calendarFormat: _calendarFormat,
-                    availableCalendarFormats: const {
-                      CalendarFormat.month: 'Maand',
-                      CalendarFormat.twoWeeks: '2 Weken',
-                      CalendarFormat.week: 'Week',
+                    availableCalendarFormats: {
+                      CalendarFormat.month: context.tr('Maand', 'Month'),
+                      CalendarFormat.twoWeeks: context.tr('2 Weken', '2 Weeks'),
+                      CalendarFormat.week: context.tr('Week', 'Week'),
                     },
                     onFormatChanged: (format) {
                       setState(() {
@@ -453,7 +457,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ),
                 const SizedBox(height: 30),
                 Text(
-                  _selectedDay != null ? 'Moment van ${DateFormat('d MMMM yyyy', 'nl_NL').format(_selectedDay!)}' : 'Kies een dag',
+                  _selectedDay != null
+                      ? '${context.tr('Moment van', 'Moment of')} ${DateFormat('d MMMM yyyy', context.tr('nl_NL', 'en_US')).format(_selectedDay!)}'
+                      : context.tr('Kies een dag', 'Choose a day'),
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 15),
@@ -506,7 +512,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                           Icon(Icons.photo_library_outlined, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), size: 60),
                                           const SizedBox(height: 10),
                                           Text(
-                                            'Geen foto voor deze dag',
+                                            context.tr('Geen foto voor deze dag', 'No photo for this day'),
                                             style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), fontSize: 16),
                                           ),
                                         ],
@@ -560,7 +566,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                   )
                                 else
                                   Text(
-                                    'Geen beschrijving toegevoegd.',
+                                    context.tr('Geen beschrijving toegevoegd.', 'No description added.'),
                                     style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(153)),
                                   ),
                                 const Divider(height: 20),
@@ -579,7 +585,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ),
           floatingActionButton: isOwner
               ? FloatingActionButton(
-                  tooltip: 'Foto toevoegen',
+                  tooltip: context.tr('Foto toevoegen', 'Add photo'),
                   onPressed: _showAddPhotoDialog,
                   child: const Icon(Icons.camera_alt),
                 )
@@ -727,7 +733,7 @@ class _AnimatedGlassCommentState extends State<_AnimatedGlassComment> with Singl
               final index = entry.key;
               final doc = entry.value;
               final data = doc.data() as Map<String, dynamic>;
-              final userName = data['userName'] ?? 'Gebruiker';
+              final userName = data['userName'] ?? context.tr('Gebruiker', 'User');
               final commentText = data['commentText'] ?? '';
               final userPhotoUrl = data['userPhotoUrl'] as String?;
               

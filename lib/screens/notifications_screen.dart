@@ -7,6 +7,7 @@ import 'package:timeago/timeago.dart' as timeago;
 import '../models/notification_model.dart';
 import '../models/profile.dart';
 import '../providers/profile_provider.dart';
+import '../providers/locale_provider.dart';
 import 'daily_entry_detail_screen.dart';
 import 'calendar_screen.dart';
 
@@ -85,7 +86,7 @@ class NotificationsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      return const Scaffold(body: Center(child: Text('Niet ingelogd')));
+      return Scaffold(body: Center(child: Text(context.tr('Niet ingelogd', 'Not logged in'))));
     }
 
     final theme = Theme.of(context);
@@ -93,7 +94,7 @@ class NotificationsScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Meldingen'),
+        title: Text(context.tr('Meldingen', 'Notifications')),
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         iconTheme: IconThemeData(color: theme.colorScheme.onSurface),
@@ -115,12 +116,12 @@ class NotificationsScreen extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return const Center(child: Text('Fout bij laden van meldingen.'));
+            return Center(child: Text(context.tr('Fout bij laden van meldingen.', 'Error loading notifications.')));
           }
 
           final docs = snapshot.data?.docs ?? [];
           if (docs.isEmpty) {
-            return const Center(child: Text('Geen meldingen.'));
+            return Center(child: Text(context.tr('Geen meldingen.', 'No notifications.')));
           }
 
           return ListView.separated(
@@ -149,62 +150,92 @@ class NotificationsScreen extends StatelessWidget {
       case 'like':
         icon = Icons.favorite;
         iconColor = Colors.red;
-        title = '${notif.senderName} vindt je foto leuk.';
+        title = context.tr(
+          '${notif.senderName} vindt je foto leuk.',
+          '${notif.senderName} liked your photo.',
+        );
         break;
       case 'comment':
       case 'reply':
         icon = Icons.comment;
         iconColor = Colors.blue;
-        title = '${notif.senderName} heeft gereageerd.';
+        title = context.tr(
+          '${notif.senderName} heeft gereageerd.',
+          '${notif.senderName} commented.',
+        );
         break;
       case 'comment_like':
         icon = Icons.favorite_border;
         iconColor = Colors.redAccent;
-        title = '${notif.senderName} vindt je reactie leuk.';
+        title = context.tr(
+          '${notif.senderName} vindt je reactie leuk.',
+          '${notif.senderName} liked your comment.',
+        );
         break;
       case 'new_post':
         icon = Icons.photo_camera;
         iconColor = Colors.green;
-        title = '${notif.senderName} heeft een nieuwe foto geplaatst.';
+        title = context.tr(
+          '${notif.senderName} heeft een nieuwe foto geplaatst.',
+          '${notif.senderName} posted a new photo.',
+        );
         break;
       case 'follow_request':
         icon = Icons.person_add;
         iconColor = Colors.orange;
-        title = '${notif.senderName} wil je profiel volgen.';
-        if (notif.status == 'pending') subtitle = 'Openstaand verzoek';
-        else if (notif.status == 'approved') subtitle = 'Geaccepteerd';
-        else if (notif.status == 'rejected') subtitle = 'Geweigerd';
+        title = context.tr(
+          '${notif.senderName} wil je profiel volgen.',
+          '${notif.senderName} wants to follow your profile.',
+        );
+        if (notif.status == 'pending') subtitle = context.tr('Openstaand verzoek', 'Pending request');
+        else if (notif.status == 'approved') subtitle = context.tr('Geaccepteerd', 'Accepted');
+        else if (notif.status == 'rejected') subtitle = context.tr('Geweigerd', 'Declined');
         break;
       case 'follow_request_sent':
         icon = Icons.access_time;
         iconColor = Colors.grey;
-        title = 'Volgverzoek gestuurd naar ${notif.senderName}.';
-        if (notif.status == 'pending') subtitle = 'In afwachting...';
-        else if (notif.status == 'approved') subtitle = 'Geaccepteerd';
-        else if (notif.status == 'rejected') subtitle = 'Geweigerd';
+        title = context.tr(
+          'Volgverzoek gestuurd naar ${notif.senderName}.',
+          'Follow request sent to ${notif.senderName}.',
+        );
+        if (notif.status == 'pending') subtitle = context.tr('In afwachting...', 'Pending...');
+        else if (notif.status == 'approved') subtitle = context.tr('Geaccepteerd', 'Accepted');
+        else if (notif.status == 'rejected') subtitle = context.tr('Geweigerd', 'Declined');
         break;
       case 'follow_approved':
         icon = Icons.check_circle;
         iconColor = Colors.green;
-        title = 'Je mag nu ${notif.senderName} volgen!';
+        title = context.tr(
+          'Je mag nu ${notif.senderName} volgen!',
+          'You can now follow ${notif.senderName}!',
+        );
         break;
       case 'download_request':
         icon = Icons.download;
         iconColor = Colors.orange;
-        title = '${notif.senderName} wil een foto downloaden.';
-        if (notif.status == 'pending') subtitle = 'Openstaand verzoek';
-        else if (notif.status == 'approved') subtitle = 'Geaccepteerd';
-        else if (notif.status == 'rejected') subtitle = 'Geweigerd';
+        title = context.tr(
+          '${notif.senderName} wil een foto downloaden.',
+          '${notif.senderName} wants to download a photo.',
+        );
+        if (notif.status == 'pending') subtitle = context.tr('Openstaand verzoek', 'Pending request');
+        else if (notif.status == 'approved') subtitle = context.tr('Geaccepteerd', 'Accepted');
+        else if (notif.status == 'rejected') subtitle = context.tr('Geweigerd', 'Declined');
         break;
       case 'download_approved':
         icon = Icons.file_download_done;
         iconColor = Colors.green;
-        title = 'Je downloadverzoek is goedgekeurd.';
+        title = context.tr(
+          'Je downloadverzoek is goedgekeurd.',
+          'Your download request has been approved.',
+        );
         break;
       default:
         icon = Icons.notifications;
         iconColor = Colors.grey;
-        title = 'Nieuwe melding van ${notif.senderName}';
+        title = context.tr(
+          'Nieuwe melding van ${notif.senderName}',
+          'New notification from ${notif.senderName}',
+        );
     }
 
     final isUnread = !notif.isRead;
@@ -247,14 +278,14 @@ class NotificationsScreen extends StatelessWidget {
             if (subtitle.isNotEmpty) 
               Text(subtitle, style: TextStyle(color: _getStatusColor(notif.status))),
             const SizedBox(height: 4),
-            Text(timeago.format(notif.timestamp.toDate(), locale: 'nl'), style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            Text(timeago.format(notif.timestamp.toDate(), locale: context.tr('nl', 'en')), style: const TextStyle(fontSize: 12, color: Colors.grey)),
             if (notif.status == 'pending' && (notif.type == 'follow_request' || notif.type == 'download_request'))
               _buildActionButtons(context, notif, provider),
           ],
         ),
         trailing: IconButton(
           icon: const Icon(Icons.delete_outline, color: Colors.grey),
-          tooltip: 'Melding verwijderen',
+          tooltip: context.tr('Melding verwijderen', 'Delete notification'),
           onPressed: () => _deleteNotification(notif.id),
         ),
       ),
@@ -292,7 +323,7 @@ class NotificationsScreen extends StatelessWidget {
               }
               _deleteNotification(notif.id);
             },
-            child: const Text('Accepteren'),
+            child: Text(context.tr('Accepteren', 'Accept')),
           ),
           const SizedBox(width: 8),
           OutlinedButton(
@@ -313,7 +344,7 @@ class NotificationsScreen extends StatelessWidget {
               }
               _deleteNotification(notif.id);
             },
-            child: const Text('Weigeren'),
+            child: Text(context.tr('Weigeren', 'Decline')),
           ),
         ],
       ),

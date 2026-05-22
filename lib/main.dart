@@ -5,10 +5,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
 import 'firebase_options.dart';
+import 'providers/locale_provider.dart';
 import 'providers/profile_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/login_screen.dart';
@@ -36,6 +38,7 @@ void main() async {
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   await initializeDateFormatting('nl_NL', null);
+  await initializeDateFormatting('en_US', null);
 
   final pushNotificationService = PushNotificationService(navigatorKey);
 
@@ -57,16 +60,27 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => LocaleProvider()),
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
       ],
-      child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, child) {
+      child: Consumer2<ThemeProvider, LocaleProvider>(
+        builder: (context, themeProvider, localeProvider, child) {
           return MaterialApp(
             navigatorKey: navigatorKey,
-            title: 'Eerste stapjes',
+            title: localeProvider.isDutch ? 'Eerste stapjes' : 'First steps',
             theme: lightTheme,
             darkTheme: darkTheme,
             themeMode: themeProvider.themeMode,
+            locale: localeProvider.locale,
+            supportedLocales: const [
+              Locale('nl', 'NL'),
+              Locale('en', 'US'),
+            ],
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
             debugShowCheckedModeBanner: false,
             home: const AuthWrapper(),
           );
@@ -115,6 +129,23 @@ class AuthWrapper extends StatelessWidget {
               final profilesQuery = snapshot.data![1] as QuerySnapshot;
 
               final data = userDoc.data() as Map<String, dynamic>?;
+
+              if (data != null) {
+                final firestoreLanguage = data['language'] as String?;
+                final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+                if (firestoreLanguage != null) {
+                  if (localeProvider.locale.languageCode != firestoreLanguage) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      localeProvider.setLocale(Locale(firestoreLanguage), updateFirestore: false);
+                    });
+                  }
+                } else {
+                  FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+                    'language': localeProvider.locale.languageCode,
+                  }, SetOptions(merge: true)).catchError((e) => debugPrint('Error saving initial language: $e'));
+                }
+              }
+
               final onboardingCompleted = data != null && data['onboardingCompleted'] == true;
               final hasProfiles = profilesQuery.docs.isNotEmpty;
 

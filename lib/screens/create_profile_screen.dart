@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import '../providers/locale_provider.dart';
 import '../models/profile.dart';
 import '../providers/profile_provider.dart';
 
@@ -88,7 +89,7 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
 
       final user = _auth.currentUser;
       if (user == null) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('U moet ingelogd zijn om een profiel op te slaan')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('U moet ingelogd zijn om een profiel op te slaan', 'You must be logged in to save a profile'))));
         return;
       }
 
@@ -118,13 +119,13 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
           }
         } catch (e) {
           if(mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Fout bij opslaan: $e')));
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${context.tr('Fout bij opslaan', 'Error saving')}: $e')));
           }          
         }
        
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Kies alsjeblieft een geboortedatum')),
+          SnackBar(content: Text(context.tr('Kies alsjeblieft een geboortedatum', 'Please choose a date of birth'))),
         );
       }
     }
@@ -135,16 +136,16 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
     final bool? confirmed = await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Profiel Verwijderen?'),
-        content: const Text('Weet je zeker dat je dit profiel wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.'),
+        title: Text(context.tr('Profiel Verwijderen?', 'Delete Profile?')),
+        content: Text(context.tr('Weet je zeker dat je dit profiel wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.', 'Are you sure you want to delete this profile? This action cannot be undone.')),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: Text('Annuleren', style: TextStyle(color: theme.colorScheme.onSurface)),
+            child: Text(context.tr('Annuleren', 'Cancel'), style: TextStyle(color: theme.colorScheme.onSurface)),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Verwijderen', style: TextStyle(color: Colors.red)),
+            child: Text(context.tr('Verwijderen', 'Delete'), style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -161,7 +162,7 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Fout bij verwijderen van profiel: $e')),
+            SnackBar(content: Text('${context.tr('Fout bij verwijderen van profiel', 'Error deleting profile')}: $e')),
           );
         }
       }
@@ -174,7 +175,7 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
     
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.profile != null ? 'Profiel Bewerken' : 'Nieuw Profiel'),
+        title: Text(widget.profile != null ? context.tr('Profiel Bewerken', 'Edit Profile') : context.tr('Nieuw Profiel', 'New Profile')),
         actions: [
           if (widget.profile != null)
             IconButton(
@@ -234,18 +235,18 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                 ),
               ),
               const SizedBox(height: 40),
-              Text('Naam', style: theme.textTheme.titleMedium),
+              Text(context.tr('Naam', 'Name'), style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
               TextFormField(
                 initialValue: _name,
-                decoration: const InputDecoration(
-                  hintText: 'Bijv. Sophie',
+                decoration: InputDecoration(
+                  hintText: context.tr('Bijv. Sophie', 'e.g. Sophie'),
                 ),
-                validator: (value) => value!.isEmpty ? 'Voer een naam in' : null,
+                validator: (value) => value!.isEmpty ? context.tr('Voer een naam in', 'Please enter a name') : null,
                 onSaved: (value) => _name = value!,
               ),
               const SizedBox(height: 24),
-              Text('Geboortedatum', style: theme.textTheme.titleMedium),
+              Text(context.tr('Geboortedatum', 'Date of birth'), style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
               GestureDetector(
                  onTap: () => _selectDate(context),
@@ -258,8 +259,8 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                   ),
                   child: Text(
                     _dateOfBirth == null
-                        ? 'Kies Geboortedatum'
-                        : DateFormat('dd MMMM yyyy', 'nl_NL').format(_dateOfBirth!),
+                        ? context.tr('Kies Geboortedatum', 'Choose Date of Birth')
+                        : DateFormat('dd MMMM yyyy', context.tr('nl_NL', 'en_US')).format(_dateOfBirth!),
                     style: TextStyle(
                       fontSize: 16,
                       color: _dateOfBirth == null ? Colors.grey[500] : theme.colorScheme.onSurface,
@@ -273,7 +274,7 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 56),
                 ),
-                child: const Text('Profiel Opslaan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                child: Text(context.tr('Profiel Opslaan', 'Save Profile'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(height: 20),
             ],

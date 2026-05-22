@@ -4,11 +4,13 @@ class UserModel {
   final String uid;
   final String displayName;
   final String photoUrl;
+  final String language;
 
   UserModel({
     required this.uid,
     required this.displayName,
     required this.photoUrl,
+    required this.language,
   });
 
   // Converteer een UserModel object naar een Map voor Firestore
@@ -17,6 +19,7 @@ class UserModel {
       'uid': uid,
       'displayName': displayName,
       'photoUrl': photoUrl,
+      'language': language,
     };
   }
 
@@ -27,6 +30,7 @@ class UserModel {
       uid: doc.id,
       displayName: data['displayName'] ?? '',
       photoUrl: data['photoUrl'] ?? '',
+      language: data['language'] ?? 'nl',
     );
   }
 }
