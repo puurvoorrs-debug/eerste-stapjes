@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -177,6 +178,117 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
+  void _showShareCodeDialog(BuildContext context, Profile profile) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        bool copied = false;
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              title: Text(
+                'Deel profiel van ${profile.name}',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.quicksand(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                ),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColor.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.share_rounded,
+                      size: 40,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Deel deze unieke code met familie of vrienden zodat zij de stapjes van ${profile.name} kunnen volgen:',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColor.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Theme.of(context).primaryColor.withOpacity(0.3),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Center(
+                      child: SelectableText(
+                        profile.shareCode ?? '',
+                        style: GoogleFonts.quicksand(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 2.0,
+                          color: Theme.of(context).primaryColor,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              actionsAlignment: MainAxisAlignment.spaceEvenly,
+              actionsPadding: const EdgeInsets.only(bottom: 20, left: 16, right: 16),
+              actions: [
+                OutlinedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  ),
+                  child: const Text('Sluiten'),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: profile.shareCode!));
+                    setState(() {
+                      copied = true;
+                    });
+                    Future.delayed(const Duration(seconds: 2), () {
+                      if (context.mounted) {
+                        setState(() {
+                          copied = false;
+                        });
+                      }
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Deelbare code gekopieerd naar klembord!'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  ),
+                  icon: Icon(copied ? Icons.check : Icons.copy_rounded),
+                  label: Text(copied ? 'Gekopieerd!' : 'Kopieer code'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     _entriesSubscription?.cancel();
@@ -213,12 +325,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 IconButton(
                   icon: const Icon(Icons.share),
                   tooltip: 'Deel Profiel',
-                  onPressed: () {
-                    Clipboard.setData(ClipboardData(text: profile.shareCode!));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Deelbare code gekopieerd!')),
-                    );
-                  },
+                  onPressed: () => _showShareCodeDialog(context, profile),
                 ),
               IconButton(
                 icon: const Icon(Icons.star),

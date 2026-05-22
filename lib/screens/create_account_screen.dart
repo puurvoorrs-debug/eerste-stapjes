@@ -53,10 +53,12 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
       // Als de gebruiker een nieuwe afbeelding heeft gekozen, upload deze dan
       if (_imageFile != null) {
+        final fileName = '${DateTime.now().toIso8601String()}.jpg';
         final storageRef = FirebaseStorage.instance
             .ref()
             .child('user_profile_pictures')
-            .child('${_currentUser.uid}.jpg');
+            .child(_currentUser.uid)
+            .child(fileName);
         await storageRef.putFile(_imageFile!);
         photoUrl = await storageRef.getDownloadURL();
       }

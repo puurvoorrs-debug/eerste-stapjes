@@ -73,9 +73,11 @@ class ProfileProvider with ChangeNotifier {
     return await snapshot.ref.getDownloadURL();
   }
 
-  Future<void> addProfile(Profile profile) async {
+  Future<Profile> addProfile(Profile profile) async {
     final user = _auth.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      throw Exception('U moet ingelogd zijn om een profiel aan te maken');
+    }
 
     final newProfileRef = _firestore.collection('profiles').doc();
     final profileId = newProfileRef.id;
@@ -97,6 +99,7 @@ class ProfileProvider with ChangeNotifier {
     );
 
     await newProfileRef.set(newProfile.toMap());
+    return newProfile;
   }
 
   Future<void> updateProfile(String profileId, Profile newProfileData) async {

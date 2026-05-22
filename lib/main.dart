@@ -11,8 +11,8 @@ import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'providers/profile_provider.dart';
 import 'providers/theme_provider.dart';
-import 'screens/create_account_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/onboarding_screen.dart';
 import 'screens/profile_selection_screen.dart';
 import 'screens/splash_screen.dart';
 import 'services/push_notification_service.dart';
@@ -93,18 +93,36 @@ class AuthWrapper extends StatelessWidget {
         }
 
         final user = authSnapshot.data!;
-        return FutureBuilder<DocumentSnapshot>(
-          future: FirebaseFirestore.instance.collection('users').doc(user.uid).get(),
-          builder: (context, profileSnapshot) {
-            if (profileSnapshot.connectionState == ConnectionState.waiting) {
+        return FutureBuilder<List<dynamic>>(
+          future: Future.wait([
+            FirebaseFirestore.instance.collection('users').doc(user.uid).get(),
+            FirebaseFirestore.instance
+                .collection('profiles')
+                .where(Filter.or(
+                  Filter('ownerId', isEqualTo: user.uid),
+                  Filter('followers', arrayContains: user.uid),
+                ))
+                .limit(1)
+                .get(),
+          ]),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
               return const SplashScreen();
             }
 
-            if (profileSnapshot.hasData && profileSnapshot.data!.exists) {
-              return const ProfileSelectionScreen();
-            } else {
-              return const CreateAccountScreen();
+            if (snapshot.hasData) {
+              final userDoc = snapshot.data![0] as DocumentSnapshot;
+              final profilesQuery = snapshot.data![1] as QuerySnapshot;
+
+              final data = userDoc.data() as Map<String, dynamic>?;
+              final onboardingCompleted = data != null && data['onboardingCompleted'] == true;
+              final hasProfiles = profilesQuery.docs.isNotEmpty;
+
+              if (onboardingCompleted || hasProfiles) {
+                return const ProfileSelectionScreen();
+              }
             }
+            return const OnboardingScreen();
           },
         );
       },

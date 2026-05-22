@@ -2,16 +2,17 @@ import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../providers/profile_provider.dart';
 import '../services/auth_service.dart';
 import '../models/profile.dart';
 import '../models/app_exception.dart';
+import '../widgets/animated_footsteps_circle.dart';
 import 'create_profile_screen.dart';
 import 'calendar_screen.dart';
 import 'account_settings_screen.dart';
 import 'notifications_screen.dart';
+import 'onboarding_screen.dart';
 
 class ProfileSelectionScreen extends StatelessWidget {
   const ProfileSelectionScreen({super.key});
@@ -172,11 +173,7 @@ class ProfileSelectionScreen extends StatelessWidget {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            SvgPicture.asset(
-                              'assets/images/Statische_logo_voor_app_icon.svg',
-                              width: 80,
-                              height: 80,
-                            ),
+                            const AnimatedFootstepsCircle(size: 80),
                             const SizedBox(height: 24),
                             Text(
                               'Welkom!',
@@ -199,7 +196,12 @@ class ProfileSelectionScreen extends StatelessWidget {
                               icon: const Icon(Icons.add),
                               label: const Text('Nieuw profiel aanmaken'),
                               onPressed: () {
-                                Navigator.push(context, MaterialPageRoute(builder: (context) => const CreateProfileScreen()));
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const OnboardingScreen(initialPage: 6),
+                                  ),
+                                );
                               },
                               style: FilledButton.styleFrom(
                                 minimumSize: const Size(double.infinity, 54),
@@ -555,7 +557,12 @@ class ProfileSelectionScreen extends StatelessWidget {
     
     return GestureDetector(
       onTap: () {
-        Navigator.push(context, MaterialPageRoute(builder: (context) => const CreateProfileScreen()));
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const OnboardingScreen(initialPage: 6),
+          ),
+        );
       },
       child: Container(
         width: 120, // Slightly wider
