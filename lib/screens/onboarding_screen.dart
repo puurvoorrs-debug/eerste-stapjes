@@ -9,10 +9,11 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import 'package:google_fonts/google_fonts.dart';
 import '../models/profile.dart';
 import '../providers/locale_provider.dart';
 import '../providers/profile_provider.dart';
-import '../widgets/animated_footsteps_circle.dart';
+import '../widgets/sketchy_components.dart';
 import 'profile_selection_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -28,6 +29,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   late final List<int> _pageHistory;
   late int _currentPage;
   bool _isLoading = false;
+
+  Color get _textColor {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return isDark ? const Color(0xFFEFEBE9) : const Color(0xFF2D2B2A);
+  }
 
   // Path selection: 'create' or 'follow'
   String? _selectedPath;
@@ -123,7 +129,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   // File Picker Helpers
   Future<void> _pickUserImage() async {
-    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
+    final pickedFile =
+        await ImagePicker().pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
         _userImageFile = File(pickedFile.path);
@@ -133,7 +140,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Future<void> _pickBabyImage() async {
-    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
+    final pickedFile =
+        await ImagePicker().pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
         _babyImageFile = File(pickedFile.path);
@@ -174,21 +182,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     });
     try {
       if (_currentUser != null) {
-        await FirebaseFirestore.instance.collection('users').doc(_currentUser.uid).set({
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(_currentUser.uid)
+            .set({
           'uid': _currentUser.uid,
-          'displayName': _currentUser.displayName ?? context.tr('Gebruiker', 'User'),
+          'displayName':
+              _currentUser.displayName ?? context.tr('Gebruiker', 'User'),
           'photoUrl': _currentUser.photoURL ?? '',
           'onboardingCompleted': true,
-          'language': Provider.of<LocaleProvider>(context, listen: false).locale.languageCode,
+          'language': Provider.of<LocaleProvider>(context, listen: false)
+              .locale
+              .languageCode,
         });
       }
       if (mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const ProfileSelectionScreen()),
+          SketchyPageRoute(
+              page: const ProfileSelectionScreen()),
         );
       }
     } catch (e) {
-      _showSnackbar(context.tr('Fout bij het opslaan van account: $e', 'Error saving account: $e'));
+      _showSnackbar(context.tr(
+          'Fout bij het opslaan van account: $e', 'Error saving account: $e'));
     } finally {
       if (mounted) {
         setState(() {
@@ -200,7 +216,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Future<void> _saveUserAndContinue() async {
     if (_userNameController.text.trim().isEmpty) {
-      _showSnackbar(context.tr('Voer a.u.b. je naam in', 'Please enter your name'));
+      _showSnackbar(
+          context.tr('Voer a.u.b. je naam in', 'Please enter your name'));
       return;
     }
     setState(() {
@@ -219,17 +236,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         finalPhotoUrl = await storageRef.getDownloadURL();
       }
 
-      await FirebaseFirestore.instance.collection('users').doc(_currentUser!.uid).set({
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_currentUser!.uid)
+          .set({
         'uid': _currentUser.uid,
         'displayName': _userNameController.text.trim(),
         'photoUrl': finalPhotoUrl,
-        'language': Provider.of<LocaleProvider>(context, listen: false).locale.languageCode,
+        'language': Provider.of<LocaleProvider>(context, listen: false)
+            .locale
+            .languageCode,
       }, SetOptions(merge: true));
 
       setState(() {
         _isLoading = false;
       });
-      
+
       if (_selectedPath == 'create') {
         _navigateToPage(6); // Baby name screen (B1)
       } else {
@@ -239,7 +261,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       setState(() {
         _isLoading = false;
       });
-      _showSnackbar(context.tr('Fout bij het opslaan van profiel: $e', 'Error saving profile: $e'));
+      _showSnackbar(context.tr(
+          'Fout bij het opslaan van profiel: $e', 'Error saving profile: $e'));
     }
   }
 
@@ -247,7 +270,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final code = _followCodeController.text.trim();
     if (code.isEmpty) {
       setState(() {
-        _followErrorMessage = context.tr('Voer een geldige volgcode in.', 'Please enter a valid follow code.');
+        _followErrorMessage = context.tr('Voer een geldige volgcode in.',
+            'Please enter a valid follow code.');
       });
       return;
     }
@@ -257,9 +281,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     });
 
     try {
-      final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+      final profileProvider =
+          Provider.of<ProfileProvider>(context, listen: false);
       final result = await profileProvider.followProfile(code);
-      
+
       setState(() {
         _isLoading = false;
       });
@@ -270,24 +295,32 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         setState(() {
           switch (result) {
             case 'already_requested':
-              _followErrorMessage = context.tr('Je hebt al een openstaand volgverzoek voor dit profiel.', 'You already have a pending follow request for this profile.');
+              _followErrorMessage = context.tr(
+                  'Je hebt al een openstaand volgverzoek voor dit profiel.',
+                  'You already have a pending follow request for this profile.');
               break;
             case 'already_following':
-              _followErrorMessage = context.tr('Je volgt dit profiel al.', 'You are already following this profile.');
+              _followErrorMessage = context.tr('Je volgt dit profiel al.',
+                  'You are already following this profile.');
               break;
             case 'own_profile':
-              _followErrorMessage = context.tr('Je kunt je eigen profiel niet volgen.', 'You cannot follow your own profile.');
+              _followErrorMessage = context.tr(
+                  'Je kunt je eigen profiel niet volgen.',
+                  'You cannot follow your own profile.');
               break;
             case 'invalid_code':
             default:
-              _followErrorMessage = context.tr('Ongeldige code. Controleer de code en probeer het opnieuw.', 'Invalid code. Please check the code and try again.');
+              _followErrorMessage = context.tr(
+                  'Ongeldige code. Controleer de code en probeer het opnieuw.',
+                  'Invalid code. Please check the code and try again.');
           }
         });
       }
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _followErrorMessage = context.tr('Er is een fout opgetreden: $e', 'An error occurred: $e');
+        _followErrorMessage = context.tr(
+            'Er is een fout opgetreden: $e', 'An error occurred: $e');
       });
     }
   }
@@ -298,7 +331,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     });
     try {
       // 1. Mark onboarding as completed
-      await FirebaseFirestore.instance.collection('users').doc(_currentUser!.uid).set({
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_currentUser!.uid)
+          .set({
         'onboardingCompleted': true,
       }, SetOptions(merge: true));
 
@@ -310,7 +346,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         ownerId: _currentUser.uid,
       );
 
-      final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+      final profileProvider =
+          Provider.of<ProfileProvider>(context, listen: false);
       final newProfile = await profileProvider.addProfile(babyProfile);
 
       setState(() {
@@ -322,7 +359,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       setState(() {
         _isLoading = false;
       });
-      _showSnackbar(context.tr('Fout bij het aanmaken van babyprofiel: $e', 'Error creating baby profile: $e'));
+      _showSnackbar(context.tr('Fout bij het aanmaken van babyprofiel: $e',
+          'Error creating baby profile: $e'));
     }
   }
 
@@ -336,11 +374,52 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   // UI Component Builders
   Widget _buildBackButton() {
-    if (_currentPage == 0) return const SizedBox(width: 48);
-    return IconButton(
-      icon: const Icon(Icons.arrow_back),
-      onPressed: _goBack,
-      tooltip: context.tr('Terug', 'Back'),
+    if (_currentPage == 0) return const SizedBox(width: 44);
+    return SketchyBackButton(onPressed: _goBack);
+  }
+
+  Widget _buildPageIndicator() {
+    final path = _activePath;
+    final activeIndex = path.indexOf(_currentPage);
+    if (activeIndex == -1) return const SizedBox.shrink();
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(path.length, (index) {
+        final isActive = index == activeIndex;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          width: isActive ? 20.0 : 8.0,
+          height: 8.0,
+          decoration: BoxDecoration(
+            color: isActive ? _textColor : Colors.transparent,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: _textColor,
+              width: 1.5,
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildFootstepsRow({required bool top}) {
+    const leftFoot = 'assets/images/logo_left_foot.svg';
+    const rightFoot = 'assets/images/logo_right_foot.svg';
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: top
+          ? [
+              SvgPicture.asset(leftFoot, height: 60, colorFilter: const ColorFilter.mode(Color(0xFFFDC55E), BlendMode.srcIn)),
+              SvgPicture.asset(rightFoot, height: 60, colorFilter: const ColorFilter.mode(Color(0xFFE35B30), BlendMode.srcIn)),
+              SvgPicture.asset(leftFoot, height: 60, colorFilter: const ColorFilter.mode(Color(0xFF92BCE3), BlendMode.srcIn)),
+            ]
+          : [
+              SvgPicture.asset(rightFoot, height: 60, colorFilter: const ColorFilter.mode(Color(0xFFE35B30), BlendMode.srcIn)),
+              SvgPicture.asset(leftFoot, height: 60, colorFilter: const ColorFilter.mode(Color(0xFFFDC55E), BlendMode.srcIn)),
+              SvgPicture.asset(rightFoot, height: 60, colorFilter: const ColorFilter.mode(Color(0xFF5C9E76), BlendMode.srcIn)),
+            ],
     );
   }
 
@@ -352,50 +431,28 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Top Bar with progress indicator
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: Row(
-                children: [
-                  _buildBackButton(),
-                  const Spacer(),
-                  if (_currentPage > 0)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.secondary.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        context.tr(
-                          'Stap ${_activePath.indexOf(_currentPage) + 1} van ${_activePath.length}',
-                          'Step ${_activePath.indexOf(_currentPage) + 1} of ${_activePath.length}',
-                        ),
-                        style: TextStyle(
-                          color: theme.primaryColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  const Spacer(),
-                  const SizedBox(width: 48), // To balance back button
-                ],
-              ),
-            ),
-            
-            // Progress Bar
+            // Top Bar with brand logo and page dots
             if (_currentPage > 0)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: LinearProgressIndicator(
-                    value: _progress,
-                    backgroundColor: theme.colorScheme.surface,
-                    valueColor: AlwaysStoppedAnimation<Color>(theme.primaryColor),
-                    minHeight: 6,
-                  ),
+                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildBackButton(),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SvgPicture.asset(
+                          'assets/images/Eerste stapjes - Logo nieuw oranje.svg',
+                          height: 32,
+                          colorFilter: ColorFilter.mode(_textColor, BlendMode.srcIn),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildPageIndicator(),
+                      ],
+                    ),
+                    const SizedBox(width: 44), // Balances the back button
+                  ],
                 ),
               ),
 
@@ -404,10 +461,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 controller: _pageController,
                 physics: const NeverScrollableScrollPhysics(),
                 children: [
-                  // Page 0: Familiar with Eerste Stapjes
+                  // Page 0: Welcome / Intro Page
                   _buildIntroPage(theme),
 
-                  // Page 1: Create vs Follow Option
+                  // Page 1: Path Option Selection (Create or Follow)
                   _buildPathOptionPage(theme),
 
                   // Page 2 (F1): Volgen - User Name
@@ -447,54 +504,70 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   // --- PAGES IMPLEMENTATION ---
 
-  // Page 0: Intro
+  // Page 0: Intro (Mockup 2)
   Widget _buildIntroPage(ThemeData theme) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const SizedBox(height: 40),
-          const AnimatedFootstepsCircle(size: 120),
-          const SizedBox(height: 40),
+          const SizedBox(height: 20),
+          _buildFootstepsRow(top: true),
+          const SizedBox(height: 60),
           Text(
-            context.tr('Welkom!', 'Welcome!'),
-            style: theme.textTheme.headlineLarge,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            context.tr('Ben je al bekend met Eerste stapjes?', 'Are you already familiar with First Steps?'),
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.7),
+            context.tr('Welkom bij', 'Welcome to'),
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: _textColor,
             ),
             textAlign: TextAlign.center,
           ),
+          const SizedBox(height: 12),
+          SvgPicture.asset(
+            'assets/images/Eerste stapjes - Logo nieuw oranje.svg',
+            height: 64,
+            colorFilter: ColorFilter.mode(_textColor, BlendMode.srcIn),
+          ),
+          const SizedBox(height: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            child: Text(
+              context.tr(
+                'Leg iedere stap van je kleintje vast met al je dierbaren.',
+                'Record every stop of your little one with all  your loved ones.',
+              ),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 15,
+                color: _textColor.withOpacity(0.8),
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 60),
+          _buildFootstepsRow(top: false),
           const SizedBox(height: 60),
           if (_isLoading)
             const CircularProgressIndicator()
           else ...[
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 56),
-              ),
-              onPressed: _saveDefaultUserAndContinue,
-              child: Text(
-                context.tr('Ja, ik ken het al', 'Yes, I am already familiar'),
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
+            SketchyButton(
+              label: context.tr('Ik ben nieuw hier', 'I am new here'),
+              fillColor: const Color(0xFFF38B4B),
+              textColor: Colors.white,
+              borderColor: _textColor,
+              onPressed: () {
+                _navigateToPage(1); // Go to Page 1
+              },
             ),
             const SizedBox(height: 16),
-            OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 56),
-              ),
-              onPressed: () {
-                _navigateToPage(1); // Go to Page 1 (Option selection)
-              },
+            TextButton(
+              onPressed: _saveDefaultUserAndContinue,
               child: Text(
-                context.tr('Nee, nog niet', 'No, not yet'),
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                context.tr('Ik ben al bekend met de app', 'I am already familiar with the app'),
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFFF38B4B),
+                ),
               ),
             ),
           ],
@@ -503,138 +576,82 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  // Page 1: Path Option
+  // Page 1: Path Option (Mockup 1)
   Widget _buildPathOptionPage(ThemeData theme) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
           Text(
-            context.tr('Hoe wil je beginnen?', 'How do you want to start?'),
-            style: theme.textTheme.headlineMedium,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            context.tr(
-              'Wil je zelf een baby profiel aanmaken of wil je een profiel volgen?',
-              'Do you want to create a baby profile yourself or do you want to follow a profile?',
-            ),
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.7),
+            context.tr('Laten we beginnen', 'Let\'s get started'),
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+              color: _textColor,
             ),
           ),
-          const SizedBox(height: 40),
-          
-          // Create Profile Card
-          GestureDetector(
+          const SizedBox(height: 8),
+          Text(
+            context.tr('Wat wil je doen?', 'What do you want to do?'),
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 16,
+              color: _textColor.withOpacity(0.7),
+            ),
+          ),
+          const SizedBox(height: 32),
+
+          SketchyRadioButton(
+            selected: _selectedPath == 'create',
+            title: context.tr('Baby profiel aanmaken', 'Create baby profile'),
+            subtitle: context.tr(
+              'Houd zelf momenten en mijlpalen van je baby bij in een kalender.',
+              'Keep track of your baby\'s moments and milestones yourself in a calendar.',
+            ),
+            leading: const Icon(Icons.baby_changing_station, color: Color(0xFFF38B4B), size: 28),
             onTap: () {
               setState(() {
                 _selectedPath = 'create';
               });
-              _navigateToPage(2); // Go to User Name (F1)
             },
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: theme.primaryColor.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: theme.primaryColor, width: 2),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: theme.primaryColor,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.baby_changing_station, color: Colors.white, size: 32),
-                  ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          context.tr('Baby profiel aanmaken', 'Create baby profile'),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          context.tr(
-                            'Houd zelf momenten en mijlpalen van je baby bij in een kalender.',
-                            'Keep track of your baby\'s moments and milestones yourself in a calendar.',
-                          ),
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.7),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
-          
           const SizedBox(height: 20),
-          
-          // Follow Profile Card
-          GestureDetector(
+
+          SketchyRadioButton(
+            selected: _selectedPath == 'follow',
+            title: context.tr('Profiel volgen', 'Follow profile'),
+            subtitle: context.tr(
+              'Volg de avonturen en stapjes van een baby van familie of vrienden.',
+              'Follow the adventures and steps of a baby of family or friends.',
+            ),
+            leading: const Icon(Icons.people_alt, color: Color(0xFFF38B4B), size: 28),
             onTap: () {
               setState(() {
                 _selectedPath = 'follow';
               });
-              _navigateToPage(2); // User name screen (F1)
             },
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.secondary.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: theme.colorScheme.secondary, width: 2),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.secondary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.people_alt, color: Colors.white, size: 32),
-                  ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          context.tr('Profiel volgen', 'Follow profile'),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          context.tr(
-                            'Volg de avonturen en stapjes van een baby van familie of vrienden.',
-                            'Follow the adventures and steps of a baby of family or friends.',
-                          ),
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.7),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+          ),
+
+          const SizedBox(height: 60),
+
+          SketchyButton(
+            label: context.tr('Verder', 'Continue'),
+            fillColor: const Color(0xFFF38B4B),
+            textColor: Colors.white,
+            onPressed: _selectedPath == null
+                ? null
+                : () {
+                    _navigateToPage(2); // Go to User Name (F1)
+                  },
+          ),
+          const SizedBox(height: 20),
+          Center(
+            child: Text(
+              context.tr('Je kunt op een later moment altijd wisselen', 'You can always switch at a later moment'),
+              style: TextStyle(
+                fontSize: 12,
+                color: _textColor.withOpacity(0.5),
               ),
             ),
           ),
@@ -650,10 +667,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
           Text(
             context.tr('Wat is jouw naam?', 'What is your name?'),
-            style: theme.textTheme.headlineMedium,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: _textColor,
+            ),
           ),
           const SizedBox(height: 12),
           Text(
@@ -665,24 +686,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ? 'Enter your name so others know who you are.'
                   : 'Enter your name so others know who you are when you follow a profile.',
             ),
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.7),
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 15,
+              color: _textColor.withOpacity(0.7),
             ),
           ),
-          const SizedBox(height: 40),
-          TextField(
+          const SizedBox(height: 36),
+          SketchyTextField(
             controller: _userNameController,
-            decoration: InputDecoration(
-              hintText: context.tr('Vul je voornaam en achternaam in', 'Enter your first and last name'),
-              labelText: context.tr('Naam', 'Name'),
-            ),
+            labelText: context.tr('Jouw Naam', 'Your Name'),
+            hintText: context.tr('Vul je voornaam en achternaam in', 'Enter your first and last name'),
             textCapitalization: TextCapitalization.words,
           ),
           const SizedBox(height: 60),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 56),
-            ),
+          SketchyButton(
+            label: context.tr('Volgende', 'Next'),
+            fillColor: const Color(0xFFF38B4B),
+            textColor: Colors.white,
             onPressed: () {
               if (_userNameController.text.trim().isEmpty) {
                 _showSnackbar(context.tr('Voer a.u.b. een naam in.', 'Please enter a name.'));
@@ -690,7 +710,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 _navigateToPage(3); // User Photo page (F2)
               }
             },
-            child: Text(context.tr('Volgende', 'Next'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -704,12 +723,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
           Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              context.tr('Upload een profielfoto', 'Upload a profile photo'),
-              style: theme.textTheme.headlineMedium,
+              context.tr('Profielfoto uploaden', 'Upload profile photo'),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: _textColor,
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -724,13 +747,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     ? 'Add a profile photo so your profile is recognizable.'
                     : 'Add a profile photo so the person you follow can easily identify you.',
               ),
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 15,
+                color: _textColor.withOpacity(0.7),
               ),
             ),
           ),
-          const SizedBox(height: 40),
-          
+          const SizedBox(height: 48),
+
           GestureDetector(
             onTap: _pickUserImage,
             child: Stack(
@@ -740,72 +764,83 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   width: 140,
                   height: 140,
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surface,
+                    color: theme.brightness == Brightness.dark
+                        ? theme.cardTheme.color
+                        : Colors.white,
                     shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                    border: Border.all(color: theme.primaryColor.withOpacity(0.3), width: 3),
-                    image: _userImageFile != null
-                        ? DecorationImage(image: FileImage(_userImageFile!), fit: BoxFit.cover)
-                        : _userPhotoUrl != null
-                            ? DecorationImage(image: NetworkImage(_userPhotoUrl!), fit: BoxFit.cover)
-                            : null,
+                    border: Border.all(
+                      color: theme.brightness == Brightness.dark
+                          ? const Color(0xFFEFEBE9).withOpacity(0.15)
+                          : Colors.grey[200]!,
+                      width: 1.5,
+                    ),
                   ),
-                  child: _userImageFile == null && _userPhotoUrl == null
-                      ? Icon(Icons.person, size: 70, color: Colors.grey[400])
-                      : null,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(70),
+                    child: _userImageFile != null
+                        ? Image.file(_userImageFile!, fit: BoxFit.cover)
+                        : _userPhotoUrl != null
+                            ? Image.network(_userPhotoUrl!, fit: BoxFit.cover)
+                            : Container(
+                                color: Colors.grey[100],
+                                child: Icon(Icons.person, size: 70, color: _textColor),
+                              ),
+                  ),
                 ),
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: theme.primaryColor,
+                    color: const Color(0xFFF38B4B),
                     shape: BoxShape.circle,
-                    border: Border.all(color: theme.scaffoldBackgroundColor, width: 3),
+                    border: Border.all(color: Colors.white, width: 2),
                   ),
                   child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
                 ),
               ],
             ),
           ),
-          
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           TextButton(
             onPressed: _pickUserImage,
-            child: Text(context.tr('Kies andere foto uit galerij', 'Choose another photo from gallery')),
+            child: Text(
+              context.tr('Kies andere foto uit galerij', 'Choose another photo from gallery'),
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFFF38B4B),
+              ),
+            ),
           ),
-
           const SizedBox(height: 60),
+
           if (_isLoading)
             const CircularProgressIndicator()
           else
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 56),
-              ),
+            SketchyButton(
+              label: context.tr('Opslaan en doorgaan', 'Save and continue'),
+              fillColor: const Color(0xFFF38B4B),
+              textColor: Colors.white,
               onPressed: _saveUserAndContinue,
-              child: Text(context.tr('Opslaan en doorgaan', 'Save and continue'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
         ],
       ),
     );
   }
 
-  // Page 4: Follow Path - Code Screen
+  // Page 4: Follow Path - Enter Code
   Widget _buildFollowCodePage(ThemeData theme) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
           Text(
-            context.tr('Heb je al een volg code gekregen?', 'Have you already received a follow code?'),
-            style: theme.textTheme.headlineMedium,
+            context.tr('Volgcode invoeren', 'Enter follow code'),
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: _textColor,
+            ),
           ),
           const SizedBox(height: 12),
           Text(
@@ -813,91 +848,97 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               'Als je een code hebt gekregen van de ouders, kun je deze hieronder invullen.',
               'If you have received a code from the parents, you can enter it below.',
             ),
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.7),
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 15,
+              color: _textColor.withOpacity(0.7),
             ),
           ),
-          const SizedBox(height: 40),
-          
-          // Switch between "Yes" or "No" to code
+          const SizedBox(height: 32),
+
+          // Custom Sketchy Choice Chips
           Row(
             children: [
               Expanded(
-                child: ChoiceChip(
-                  label: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                    child: Text(context.tr('Ja, ik heb een code', 'Yes, I have a code'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                child: GestureDetector(
+                  onTap: () => setState(() => _hasFollowCode = true),
+                  child: SketchyContainer(
+                    padding: 12,
+                    fillColor: _hasFollowCode ? const Color(0xFFFFF1DC) : Colors.white,
+                    borderColor: _textColor,
+                    borderRadius: 10.0,
+                    showShadow: _hasFollowCode,
+                    shadowOffset: 2.0,
+                    child: Center(
+                      child: Text(
+                        context.tr('Ja, ik heb een code', 'Yes, I have a code'),
+                        style: TextStyle(fontWeight: FontWeight.bold, color: _textColor),
+                      ),
+                    ),
                   ),
-                  selected: _hasFollowCode,
-                  onSelected: (selected) {
-                    setState(() {
-                      _hasFollowCode = true;
-                    });
-                  },
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: ChoiceChip(
-                  label: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                    child: Text(context.tr('Nee, nog niet', 'No, not yet'), style: const TextStyle(fontWeight: FontWeight.bold)),
+                child: GestureDetector(
+                  onTap: () => setState(() {
+                    _hasFollowCode = false;
+                    _followErrorMessage = null;
+                  }),
+                  child: SketchyContainer(
+                    padding: 12,
+                    fillColor: !_hasFollowCode ? const Color(0xFFFFF1DC) : Colors.white,
+                    borderColor: _textColor,
+                    borderRadius: 10.0,
+                    showShadow: !_hasFollowCode,
+                    shadowOffset: 2.0,
+                    child: Center(
+                      child: Text(
+                        context.tr('Nee, nog niet', 'No, not yet'),
+                        style: TextStyle(fontWeight: FontWeight.bold, color: _textColor),
+                      ),
+                    ),
                   ),
-                  selected: !_hasFollowCode,
-                  onSelected: (selected) {
-                    setState(() {
-                      _hasFollowCode = false;
-                      _followErrorMessage = null;
-                    });
-                  },
                 ),
               ),
             ],
           ),
 
-          const SizedBox(height: 32),
+          const SizedBox(height: 36),
 
-          // Code Input Field
           if (_hasFollowCode) ...[
-            TextField(
+            SketchyTextField(
               controller: _followCodeController,
-              decoration: InputDecoration(
-                labelText: context.tr('Unieke Volgcode', 'Unique Follow Code'),
-                hintText: context.tr('Bijv. ABCXYZ', 'E.g. ABCXYZ'),
-                errorText: _followErrorMessage,
-                prefixIcon: const Icon(Icons.vpn_key_outlined),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () => _followCodeController.clear(),
-                ),
-              ),
+              labelText: context.tr('Unieke Volgcode', 'Unique Follow Code'),
+              hintText: context.tr('Bijv. ABCXYZ', 'E.g. ABCXYZ'),
               textCapitalization: TextCapitalization.characters,
-              maxLength: 6,
-              inputFormatters: [
-                LengthLimitingTextInputFormatter(6),
-              ],
             ),
-            const SizedBox(height: 40),
+            if (_followErrorMessage != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _followErrorMessage!,
+                style: const TextStyle(color: Colors.red, fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+            ],
+            const SizedBox(height: 48),
+
             if (_isLoading)
               const Center(child: CircularProgressIndicator())
             else
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 56),
-                ),
+              SketchyButton(
+                label: context.tr('Aanvraag doen', 'Submit request'),
+                fillColor: const Color(0xFFF38B4B),
+                textColor: Colors.white,
                 onPressed: _submitFollowRequest,
-                child: Text(context.tr('Aanvraag doen', 'Submit request'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
           ] else ...[
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                borderRadius: BorderRadius.circular(16),
-              ),
+            SketchyContainer(
+              borderColor: _textColor,
+              borderRadius: 0.0,
+              padding: 16.0,
+              showShadow: false,
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: theme.primaryColor, size: 28),
+                  const Icon(Icons.info_outline, color: Color(0xFFF38B4B), size: 28),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Text(
@@ -905,7 +946,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         'Geen probleem! Je kunt later op het hoofdscherm altijd alsnog een code invoeren om een babyprofiel te volgen.',
                         'No problem! You can always enter a code on the main screen later to follow a baby profile.',
                       ),
-                      style: theme.textTheme.bodyMedium?.copyWith(
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14,
+                        color: _textColor,
                         height: 1.4,
                       ),
                     ),
@@ -914,14 +957,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
             ),
             const SizedBox(height: 60),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 56),
-              ),
+            SketchyButton(
+              label: context.tr('Volgende', 'Next'),
+              fillColor: const Color(0xFFF38B4B),
+              textColor: Colors.white,
               onPressed: () {
-                _navigateToPage(5); // Go to end page (F4)
+                _navigateToPage(5); // Go to success page (F4)
               },
-              child: Text(context.tr('Volgende', 'Next'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
           ],
         ],
@@ -929,31 +971,34 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  // Page 5: Follow Path - Success
+  // Page 5: Follow Success
   Widget _buildFollowSuccessPage(ThemeData theme) {
     return PopScope(
       canPop: false,
       child: Container(
         padding: const EdgeInsets.all(24.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Spacer(),
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: theme.primaryColor.withOpacity(0.2),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.check_circle_outline, color: theme.primaryColor, size: 80),
+            SketchyContainer(
+              padding: 24,
+              borderRadius: 80,
+              fillColor: const Color(0xFFFFF1DC),
+              borderColor: _textColor,
+              showShadow: false,
+              child: const Icon(Icons.check_circle_outline, color: Color(0xFFF38B4B), size: 80),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 36),
             Text(
               context.tr(
                 _hasFollowCode ? 'Verzoek verzonden!' : 'Bijna klaar!',
                 _hasFollowCode ? 'Request sent!' : 'Almost ready!',
               ),
-              style: theme.textTheme.headlineMedium,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: _textColor,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -969,55 +1014,48 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       : 'Have fun discovering his or her first steps together soon!',
                 ),
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.7),
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 15,
+                  color: _textColor.withOpacity(0.7),
                   height: 1.5,
                 ),
               ),
             ),
-            if (_hasFollowCode) ...[
-              const SizedBox(height: 24),
-              Text(
-                context.tr(
-                  'Veel plezier straks met het samen ontdekken van zijn of haar nieuwe stapjes!',
-                  'Have fun discovering his or her first steps together soon!',
-                ),
-                textAlign: TextAlign.center,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
             const Spacer(),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 56),
+            if (_isLoading)
+              const CircularProgressIndicator()
+            else
+              SketchyButton(
+                label: context.tr('Afronden', 'Finish'),
+                fillColor: const Color(0xFFF38B4B),
+                textColor: Colors.white,
+                onPressed: () async {
+                  setState(() {
+                    _isLoading = true;
+                  });
+                  try {
+                    await FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(_currentUser!.uid)
+                        .set({
+                      'onboardingCompleted': true,
+                    }, SetOptions(merge: true));
+                    if (mounted) {
+                      Navigator.of(context).pushReplacement(
+                        SketchyPageRoute(page: const ProfileSelectionScreen()),
+                      );
+                    }
+                  } catch (e) {
+                    _showSnackbar(context.tr('Fout bij het afronden: $e', 'Error finishing: $e'));
+                  } finally {
+                    if (mounted) {
+                      setState(() {
+                        _isLoading = false;
+                      });
+                    }
+                  }
+                },
               ),
-              onPressed: () async {
-                setState(() {
-                  _isLoading = true;
-                });
-                try {
-                  await FirebaseFirestore.instance.collection('users').doc(_currentUser!.uid).set({
-                    'onboardingCompleted': true,
-                  }, SetOptions(merge: true));
-                  if (mounted) {
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (context) => const ProfileSelectionScreen()),
-                    );
-                  }
-                } catch (e) {
-                  _showSnackbar(context.tr('Fout bij het afronden: $e', 'Error finishing: $e'));
-                } finally {
-                  if (mounted) {
-                    setState(() {
-                      _isLoading = false;
-                    });
-                  }
-                }
-              },
-              child: Text(context.tr('Afronden', 'Finish'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            ),
           ],
         ),
       ),
@@ -1031,10 +1069,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
           Text(
-            context.tr('Wat is jullie wondertje zijn of haar naam?', 'What is your little wonder\'s name?'),
-            style: theme.textTheme.headlineMedium,
+            context.tr('Naam van de baby', 'Name of the baby'),
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: _textColor,
+            ),
           ),
           const SizedBox(height: 12),
           Text(
@@ -1042,24 +1084,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               'Vul de naam in van jullie kindje om zijn of haar profiel aan te maken.',
               'Enter your baby\'s name to create his or her profile.',
             ),
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.7),
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 15,
+              color: _textColor.withOpacity(0.7),
             ),
           ),
-          const SizedBox(height: 40),
-          TextField(
+          const SizedBox(height: 36),
+          SketchyTextField(
             controller: _babyNameController,
-            decoration: InputDecoration(
-              hintText: context.tr('Bijv. Sophie, Liam, Zoë', 'E.g. Sophie, Liam, Zoë'),
-              labelText: context.tr('Naam van de baby', 'Baby\'s name'),
-            ),
+            labelText: context.tr('Naam', 'Name'),
+            hintText: context.tr('Bijv. Sophie, Liam, Zoë', 'E.g. Sophie, Liam, Zoë'),
             textCapitalization: TextCapitalization.words,
           ),
           const SizedBox(height: 60),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 56),
-            ),
+          SketchyButton(
+            label: context.tr('Volgende', 'Next'),
+            fillColor: const Color(0xFFF38B4B),
+            textColor: Colors.white,
             onPressed: () {
               if (_babyNameController.text.trim().isEmpty) {
                 _showSnackbar(context.tr('Voer a.u.b. de naam van het kindje in.', 'Please enter the baby\'s name.'));
@@ -1067,7 +1108,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 _navigateToPage(7); // Birthdate screen (B2)
               }
             },
-            child: Text(context.tr('Volgende', 'Next'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -1083,10 +1123,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
           Text(
             context.tr('Wanneer is $babyName geboren?', 'When was $babyName born?'),
-            style: theme.textTheme.headlineMedium,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: _textColor,
+            ),
           ),
           const SizedBox(height: 12),
           Text(
@@ -1094,25 +1138,24 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               'Dit helpt ons om de leeftijden bij de foto\'s goed te berekenen.',
               'This helps us calculate the ages for the photos correctly.',
             ),
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.7),
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 15,
+              color: _textColor.withOpacity(0.7),
             ),
           ),
-          const SizedBox(height: 40),
-          
+          const SizedBox(height: 36),
+
           GestureDetector(
             onTap: () => _selectBabyBirthDate(context),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: theme.primaryColor.withOpacity(0.3), width: 1.5),
-              ),
+            child: SketchyContainer(
+              fillColor: Colors.white,
+              borderColor: _textColor,
+              borderRadius: 12.0,
+              padding: 16.0,
+              showShadow: false,
               child: Row(
                 children: [
-                  Icon(Icons.calendar_today, color: theme.primaryColor),
+                  const Icon(Icons.calendar_today, color: Color(0xFFF38B4B)),
                   const SizedBox(width: 16),
                   Text(
                     _babyDateOfBirth == null
@@ -1121,19 +1164,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: _babyDateOfBirth == null ? Colors.grey[500] : theme.colorScheme.onSurface,
+                      color: _babyDateOfBirth == null ? Colors.grey[500] : _textColor,
                     ),
                   ),
                 ],
               ),
             ),
           ),
-          
           const SizedBox(height: 60),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 56),
-            ),
+
+          SketchyButton(
+            label: context.tr('Volgende', 'Next'),
+            fillColor: const Color(0xFFF38B4B),
+            textColor: Colors.white,
             onPressed: () {
               if (_babyDateOfBirth == null) {
                 _showSnackbar(context.tr('Kies a.u.b. de geboortedatum.', 'Please choose the date of birth.'));
@@ -1141,7 +1184,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 _navigateToPage(8); // Photo screen (B3)
               }
             },
-            child: Text(context.tr('Volgende', 'Next'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -1157,12 +1199,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
           Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              context.tr('Upload een profielfoto', 'Upload a profile photo'),
-              style: theme.textTheme.headlineMedium,
+              context.tr('Profielfoto uploaden', 'Upload profile photo'),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: _textColor,
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -1170,13 +1216,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             alignment: Alignment.centerLeft,
             child: Text(
               context.tr('Upload een profielfoto voor $babyName.', 'Upload a profile photo for $babyName.'),
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 15,
+                color: _textColor.withOpacity(0.7),
               ),
             ),
           ),
-          const SizedBox(height: 40),
-          
+          const SizedBox(height: 48),
+
           GestureDetector(
             onTap: _pickBabyImage,
             child: Stack(
@@ -1186,59 +1233,66 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   width: 140,
                   height: 140,
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surface,
+                    color: theme.brightness == Brightness.dark
+                        ? theme.cardTheme.color
+                        : Colors.white,
                     shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                    border: Border.all(color: theme.primaryColor.withOpacity(0.3), width: 3),
-                    image: _babyImageFile != null
-                        ? DecorationImage(image: FileImage(_babyImageFile!), fit: BoxFit.cover)
-                        : null,
+                    border: Border.all(
+                      color: theme.brightness == Brightness.dark
+                          ? const Color(0xFFEFEBE9).withOpacity(0.15)
+                          : Colors.grey[200]!,
+                      width: 1.5,
+                    ),
                   ),
-                  child: _babyImageFile == null
-                      ? Icon(Icons.child_care, size: 70, color: Colors.grey[400])
-                      : null,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(70),
+                    child: _babyImageFile != null
+                        ? Image.file(_babyImageFile!, fit: BoxFit.cover)
+                        : Container(
+                            color: Colors.grey[100],
+                            child: Icon(Icons.child_care, size: 70, color: _textColor),
+                          ),
+                  ),
                 ),
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: theme.primaryColor,
+                    color: const Color(0xFFF38B4B),
                     shape: BoxShape.circle,
-                    border: Border.all(color: theme.scaffoldBackgroundColor, width: 3),
+                    border: Border.all(color: Colors.white, width: 2),
                   ),
                   child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
                 ),
               ],
             ),
           ),
-          
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           TextButton(
             onPressed: _pickBabyImage,
-            child: Text(context.tr('Kies foto uit galerij', 'Choose photo from gallery')),
-          ),
-
-          const SizedBox(height: 60),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 56),
+            child: Text(
+              context.tr('Kies foto uit galerij', 'Choose photo from gallery'),
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFFF38B4B),
+              ),
             ),
+          ),
+          const SizedBox(height: 60),
+
+          SketchyButton(
+            label: context.tr('Volgende', 'Next'),
+            fillColor: const Color(0xFFF38B4B),
+            textColor: Colors.white,
             onPressed: () {
               _navigateToPage(9); // Explanation screen (B4)
             },
-            child: Text(context.tr('Volgende', 'Next'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
   }
 
-  // Page 9: Baby Profile - Calendar Explanation
+  // Page 9: Baby Profile - Calendar Explanation (Mockup 5 frame style)
   Widget _buildBabyExplanationPage(ThemeData theme) {
     final babyName = _babyNameController.text.trim();
     final formattedBirthdate = _babyDateOfBirth != null
@@ -1250,19 +1304,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
           Text(
             context.tr('Kalender vullen', 'Fill calendar'),
-            style: theme.textTheme.headlineMedium,
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: theme.primaryColor.withOpacity(0.15), width: 1.5),
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: _textColor,
             ),
+          ),
+          const SizedBox(height: 24),
+
+          // Double Sketchy Frame (representing Mockup 5 photo style)
+          SketchyContainer(
+            borderColor: _textColor,
+            borderRadius: 0.0,
+            padding: 20.0,
+            showShadow: false,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1271,8 +1329,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     'Het kan natuurlijk zo zijn dat $babyName niet vandaag is geboren.',
                     'It could of course be that $babyName was not born today.',
                   ),
-                  style: theme.textTheme.titleMedium?.copyWith(
+                  style: GoogleFonts.plusJakartaSans(
                     fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: _textColor,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -1281,7 +1341,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     'Jullie mogen op de dagen vanaf $formattedBirthdate tot de dag van vandaag alvast de kalender vullen met een foto van die dag.',
                     'You can already fill the calendar with a photo for each day from $formattedBirthdate up to today.',
                   ),
-                  style: theme.textTheme.bodyLarge?.copyWith(
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    color: _textColor.withOpacity(0.8),
                     height: 1.5,
                   ),
                 ),
@@ -1291,7 +1353,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     'Daarna kunnen jullie iedere dag 1 foto van de dag toevoegen, zo houd je makkelijk en veilig jullie familie en vrienden geupdate en houd je een fotodagboek bij van $babyName!',
                     'After that, you can add 1 photo of the day every day. This keeps your family and friends updated easily and securely, and builds a photo diary of $babyName!',
                   ),
-                  style: theme.textTheme.bodyLarge?.copyWith(
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14,
+                    color: _textColor.withOpacity(0.8),
                     height: 1.5,
                   ),
                 ),
@@ -1299,15 +1363,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
           ),
           const SizedBox(height: 50),
+
           if (_isLoading)
             const Center(child: CircularProgressIndicator())
           else
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 56),
-              ),
+            SketchyButton(
+              label: context.tr('Profiel aanmaken', 'Create profile'),
+              fillColor: const Color(0xFFF38B4B),
+              textColor: Colors.white,
               onPressed: _createBabyProfileAndContinue,
-              child: Text(context.tr('Profiel aanmaken', 'Create profile'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
         ],
       ),
@@ -1326,10 +1390,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 20),
+            const SizedBox(height: 10),
             Text(
               context.tr('Unieke Volgcode', 'Unique Follow Code'),
-              style: theme.textTheme.headlineMedium,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: _textColor,
+              ),
             ),
             const SizedBox(height: 12),
             Text(
@@ -1337,30 +1405,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 'Deel deze unieke code met familie en vrienden waarmee jullie $babyName zijn of haar eerste stapjes willen delen.',
                 'Share this unique code with family and friends you want to share $babyName\'s first steps with.',
               ),
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 15,
+                color: _textColor.withOpacity(0.7),
                 height: 1.5,
               ),
             ),
-            
             const SizedBox(height: 32),
-            
-            // Share Code Display Card
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-                border: Border.all(color: theme.primaryColor.withOpacity(0.2), width: 1.5),
-              ),
+
+            // Share Code Display inside a Sketchy Container
+            SketchyContainer(
+              fillColor: theme.brightness == Brightness.dark
+                  ? const Color(0xFFFFF1DC).withOpacity(0.15)
+                  : const Color(0xFFFFF1DC),
+              borderColor: _textColor,
+              borderRadius: 0.0,
+              padding: 24.0,
+              showShadow: false,
               child: Column(
                 children: [
                   Text(
@@ -1375,16 +1436,26 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   const SizedBox(height: 8),
                   Text(
                     shareCode,
-                    style: theme.textTheme.displayMedium?.copyWith(
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 32,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 4,
-                      color: theme.colorScheme.onSurface,
+                      color: _textColor,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  
-                  // Copy Button with Micro-Animation/State change
-                  ElevatedButton.icon(
+                  const SizedBox(height: 20),
+
+                  SketchyButton(
+                    label: context.tr(_isCopied ? 'Gekopieerd!' : 'Kopieer code', _isCopied ? 'Copied!' : 'Copy code'),
+                    fillColor: _isCopied ? Colors.green[400] : Colors.white,
+                    textColor: _isCopied ? Colors.white : _textColor,
+                    icon: Icon(
+                      _isCopied ? Icons.check : Icons.copy,
+                      color: _isCopied ? Colors.white : _textColor,
+                      size: 20,
+                    ),
+                    showShadow: false,
+                    height: 48,
                     onPressed: () {
                       Clipboard.setData(ClipboardData(text: shareCode));
                       setState(() {
@@ -1398,45 +1469,33 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         }
                       });
                     },
-                    icon: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      child: Icon(
-                        _isCopied ? Icons.check : Icons.copy,
-                        key: ValueKey<bool>(_isCopied),
-                        size: 20,
-                      ),
-                    ),
-                    label: Text(context.tr(_isCopied ? 'Gekopieerd!' : 'Kopieer code', _isCopied ? 'Copied!' : 'Copy code')),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _isCopied ? Colors.green[400] : theme.primaryColor,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    ),
                   ),
                 ],
               ),
             ),
-            
-            const SizedBox(height: 24),
-            
-            // Security Info
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.secondary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
-              ),
+
+            const SizedBox(height: 28),
+
+            // Security Info in a Sketchy Container
+            SketchyContainer(
+              borderColor: _textColor,
+              borderRadius: 0.0,
+              padding: 16.0,
+              showShadow: false,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.shield_outlined, color: theme.colorScheme.secondary, size: 24),
-                  const SizedBox(width: 12),
+                  const Icon(Icons.shield_outlined, color: Color(0xFFF38B4B), size: 28),
+                  const SizedBox(width: 16),
                   Expanded(
                     child: Text(
                       context.tr(
                         'Personen die willen volgen voeren de volg code in, maar jullie moeten altijd het volgverzoek nog accepteren. Dit is een extra beveiligingsstap.',
                         'People who want to follow must enter the follow code, but you must always approve the follow request. This is an extra security step.',
                       ),
-                      style: theme.textTheme.bodyMedium?.copyWith(
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14,
+                        color: _textColor,
                         height: 1.4,
                       ),
                     ),
@@ -1444,30 +1503,30 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 16),
             Text(
               context.tr(
                 'Je kunt je code altijd terug vinden in de menubalk bovenin binnen $babyName zijn of haar profielpagina.',
                 'You can always find your code in the top menu bar on $babyName\'s profile page.',
               ),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
+              style: TextStyle(
+                fontSize: 12,
+                color: _textColor.withOpacity(0.6),
                 height: 1.4,
               ),
             ),
-            
             const SizedBox(height: 40),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 56),
-              ),
+
+            SketchyButton(
+              label: context.tr('Aan de slag!', 'Get started!'),
+              fillColor: const Color(0xFFF38B4B),
+              textColor: Colors.white,
               onPressed: () {
                 Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (context) => const ProfileSelectionScreen()),
+                  SketchyPageRoute(page: const ProfileSelectionScreen()),
                 );
               },
-              child: Text(context.tr('Aan de slag!', 'Get started!'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
           ],
         ),

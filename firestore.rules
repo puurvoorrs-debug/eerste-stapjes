@@ -53,6 +53,17 @@ service cloud.firestore {
       // Alleen de eigenaar mag het profiel verwijderen
       allow delete: if isSignedIn() && resource.data.ownerId == userId();
 
+      // --- PORS (NUDGES) ---
+      match /nudges/{dateString} {
+        allow read: if isSignedIn() && (
+          get(/databases/$(database)/documents/profiles/$(profileId)).data.ownerId == userId() ||
+          userId() in get(/databases/$(database)/documents/profiles/$(profileId)).data.followers
+        );
+        allow create, update: if isSignedIn() && (
+          userId() in get(/databases/$(database)/documents/profiles/$(profileId)).data.followers
+        );
+      }
+
       // --- DAGELIJKSE FOTO'S (DAILY ENTRIES) ---
       match /daily_entries/{dateString} {
         // BELANGRIJK: Alleen de eigenaar én geaccepteerde volgers mogen de foto's en tekst zien!

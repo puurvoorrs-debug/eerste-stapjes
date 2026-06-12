@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../providers/locale_provider.dart';
 import '../models/profile.dart';
 import '../providers/profile_provider.dart';
+import '../widgets/sketchy_components.dart';
 
 class CreateProfileScreen extends StatefulWidget {
   final Profile? profile;
@@ -21,7 +22,7 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  late String _name;
+  late TextEditingController _nameController;
   late DateTime? _dateOfBirth;
   File? _profileImage;
   String? _profileImageUrl;
@@ -29,24 +30,31 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
   @override
   void initState() {
     super.initState();
+    _nameController = TextEditingController(text: widget.profile?.name ?? '');
     if (widget.profile != null) {
-      _name = widget.profile!.name;
       _dateOfBirth = widget.profile!.dateOfBirth;
       _profileImageUrl = widget.profile!.profileImageUrl;
     } else {
-      _name = '';
       _dateOfBirth = null;
       _profileImage = null;
       _profileImageUrl = null;
     }
   }
 
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
   Future<void> _pickImage() async {
-    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
+    final pickedFile =
+        await ImagePicker().pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
         _profileImage = File(pickedFile.path);
-        _profileImageUrl = null; // Clear existing image url if new image is picked
+        _profileImageUrl =
+            null; // Clear existing image url if new image is picked
       });
     }
   }
@@ -85,18 +93,19 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
 
   void _saveProfile() async {
     if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
-
       final user = _auth.currentUser;
       if (user == null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('U moet ingelogd zijn om een profiel op te slaan', 'You must be logged in to save a profile'))));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(context.tr(
+                'U moet ingelogd zijn om een profiel op te slaan',
+                'You must be logged in to save a profile'))));
         return;
       }
 
       if (_dateOfBirth != null) {
         final profileData = Profile(
           id: widget.profile?.id,
-          name: _name,
+          name: _nameController.text.trim(),
           dateOfBirth: _dateOfBirth!,
           profileImage: _profileImage,
           profileImageUrl: _profileImageUrl,
@@ -108,7 +117,7 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
 
         final provider = Provider.of<ProfileProvider>(context, listen: false);
         try {
-           if (widget.profile != null) {
+          if (widget.profile != null) {
             await provider.updateProfile(widget.profile!.id!, profileData);
           } else {
             // The provider's addProfile method will set the final ownerId and generate the shareCode
@@ -118,14 +127,17 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
             Navigator.pop(context);
           }
         } catch (e) {
-          if(mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${context.tr('Fout bij opslaan', 'Error saving')}: $e')));
-          }          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(
+                    '${context.tr('Fout bij opslaan', 'Error saving')}: $e')));
+          }
         }
-       
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.tr('Kies alsjeblieft een geboortedatum', 'Please choose a date of birth'))),
+          SnackBar(
+              content: Text(context.tr('Kies alsjeblieft een geboortedatum',
+                  'Please choose a date of birth'))),
         );
       }
     }
@@ -135,25 +147,78 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
     final theme = Theme.of(context);
     final bool? confirmed = await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.tr('Profiel Verwijderen?', 'Delete Profile?')),
-        content: Text(context.tr('Weet je zeker dat je dit profiel wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.', 'Are you sure you want to delete this profile? This action cannot be undone.')),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(context.tr('Annuleren', 'Cancel'), style: TextStyle(color: theme.colorScheme.onSurface)),
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Container(
+          decoration: BoxDecoration(
+            color: theme.cardTheme.color,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: theme.brightness == Brightness.dark
+                  ? const Color(0xFFEFEBE9).withOpacity(0.15)
+                  : Colors.grey[300]!,
+              width: 1.0,
+            ),
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(context.tr('Verwijderen', 'Delete'), style: const TextStyle(color: Colors.red)),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                context.tr('Profiel Verwijderen?', 'Delete Profile?'),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: theme.colorScheme.onSurface,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                context.tr(
+                  'Weet je zeker dat je dit profiel wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.',
+                  'Are you sure you want to delete this profile? This action cannot be undone.',
+                ),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  Expanded(
+                    child: SketchyButton(
+                      label: context.tr('Annuleren', 'Cancel'),
+                      fillColor: Colors.white,
+                      onPressed: () => Navigator.of(context).pop(false),
+                      height: 48,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SketchyButton(
+                      label: context.tr('Verwijderen', 'Delete'),
+                      fillColor: Colors.red,
+                      textColor: Colors.white,
+                      borderColor: Colors.red,
+                      onPressed: () => Navigator.of(context).pop(true),
+                      height: 48,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
 
     if (confirmed == true && widget.profile != null) {
       try {
-        await Provider.of<ProfileProvider>(context, listen: false).deleteProfile(widget.profile!.id!);
+        await Provider.of<ProfileProvider>(context, listen: false)
+            .deleteProfile(widget.profile!.id!);
         if (mounted) {
           // Pop twice to get back to the profile selection screen
           Navigator.of(context).pop();
@@ -162,7 +227,9 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${context.tr('Fout bij verwijderen van profiel', 'Error deleting profile')}: $e')),
+            SnackBar(
+                content: Text(
+                    '${context.tr('Fout bij verwijderen van profiel', 'Error deleting profile')}: $e')),
           );
         }
       }
@@ -172,16 +239,31 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.profile != null ? context.tr('Profiel Bewerken', 'Edit Profile') : context.tr('Nieuw Profiel', 'New Profile')),
+        title: Text(widget.profile != null
+            ? context.tr('Profiel Bewerken', 'Edit Profile')
+            : context.tr('Nieuw Profiel', 'New Profile')),
+        leading: Navigator.canPop(context)
+            ? Padding(
+                padding: const EdgeInsets.all(6.0),
+                child: SketchyBackButton(
+                  onPressed: () => Navigator.maybePop(context),
+                ),
+              )
+            : null,
         actions: [
           if (widget.profile != null)
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              color: Colors.red,
-              onPressed: _deleteProfile,
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0, top: 8.0, bottom: 8.0),
+              child: SketchyIconButton(
+                icon: Icons.delete_outline,
+                color: Colors.red,
+                borderColor: Colors.red,
+                size: 40.0,
+                onPressed: _deleteProfile,
+              ),
             ),
         ],
       ),
@@ -199,82 +281,104 @@ class _CreateProfileScreenState extends State<CreateProfileScreen> {
                     alignment: Alignment.bottomRight,
                     children: [
                       Container(
-                        width: 120,
-                        height: 120,
                         decoration: BoxDecoration(
-                          color: theme.cardTheme.color,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                          image: _profileImage != null 
-                            ? DecorationImage(image: FileImage(_profileImage!), fit: BoxFit.cover)
-                            : _profileImageUrl != null
-                              ? DecorationImage(image: NetworkImage(_profileImageUrl!), fit: BoxFit.cover)
-                              : null,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: theme.brightness == Brightness.dark
+                                ? const Color(0xFFEFEBE9).withOpacity(0.15)
+                                : Colors.grey[200]!,
+                            width: 1.0,
+                          ),
                         ),
-                        child: _profileImage == null && _profileImageUrl == null 
-                          ? Icon(Icons.person, size: 60, color: Colors.grey[400]) 
-                          : null,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            width: 120,
+                            height: 120,
+                            color: theme.cardTheme.color,
+                            child: _profileImage != null
+                                ? Image.file(_profileImage!, fit: BoxFit.cover)
+                                : _profileImageUrl != null
+                                    ? Image.network(_profileImageUrl!, fit: BoxFit.cover)
+                                    : Icon(Icons.person,
+                                        size: 60, color: Colors.grey[400]),
+                          ),
+                        ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: theme.primaryColor,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: theme.scaffoldBackgroundColor, width: 3),
+                      Positioned(
+                        right: -4,
+                        bottom: -4,
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: theme.primaryColor,
+                            border: Border.all(
+                              color: theme.scaffoldBackgroundColor,
+                              width: 2.0,
+                            ),
+                          ),
+                          child: const Center(
+                            child: Icon(Icons.camera_alt,
+                                color: Colors.white, size: 16),
+                          ),
                         ),
-                        child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
                       ),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 40),
-              Text(context.tr('Naam', 'Name'), style: theme.textTheme.titleMedium),
-              const SizedBox(height: 8),
-              TextFormField(
-                initialValue: _name,
-                decoration: InputDecoration(
-                  hintText: context.tr('Bijv. Sophie', 'e.g. Sophie'),
-                ),
-                validator: (value) => value!.isEmpty ? context.tr('Voer een naam in', 'Please enter a name') : null,
-                onSaved: (value) => _name = value!,
+              SketchyTextField(
+                controller: _nameController,
+                labelText: context.tr('Naam', 'Name'),
+                hintText: context.tr('Bijv. Sophie', 'e.g. Sophie'),
+                validator: (value) => value!.isEmpty
+                    ? context.tr('Voer een naam in', 'Please enter a name')
+                    : null,
               ),
               const SizedBox(height: 24),
-              Text(context.tr('Geboortedatum', 'Date of birth'), style: theme.textTheme.titleMedium),
+              Text(context.tr('Geboortedatum', 'Date of birth'),
+                  style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
               GestureDetector(
-                 onTap: () => _selectDate(context),
+                onTap: () => _selectDate(context),
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                  padding: const EdgeInsets.all(16.0),
                   decoration: BoxDecoration(
-                    color: theme.inputDecorationTheme.fillColor,
-                    borderRadius: BorderRadius.circular(16),
+                    color: theme.cardTheme.color,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: theme.brightness == Brightness.dark
+                          ? const Color(0xFFEFEBE9).withOpacity(0.35)
+                          : const Color(0xFF2D2B2A).withOpacity(0.35),
+                      width: 1.5,
+                    ),
                   ),
                   child: Text(
                     _dateOfBirth == null
-                        ? context.tr('Kies Geboortedatum', 'Choose Date of Birth')
-                        : DateFormat('dd MMMM yyyy', context.tr('nl_NL', 'en_US')).format(_dateOfBirth!),
+                        ? context.tr(
+                            'Kies Geboortedatum', 'Choose Date of Birth')
+                        : DateFormat(
+                                'dd MMMM yyyy', context.tr('nl_NL', 'en_US'))
+                            .format(_dateOfBirth!),
                     style: TextStyle(
                       fontSize: 16,
-                      color: _dateOfBirth == null ? Colors.grey[500] : theme.colorScheme.onSurface,
+                      color: _dateOfBirth == null
+                          ? Colors.grey[500]
+                          : theme.colorScheme.onSurface,
                     ),
                   ),
                 ),
               ),
               const SizedBox(height: 40),
-              ElevatedButton(
+              SketchyButton(
                 onPressed: _saveProfile,
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 56),
-                ),
-                child: Text(context.tr('Profiel Opslaan', 'Save Profile'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                label: context.tr('Profiel Opslaan', 'Save Profile'),
+                fillColor: theme.primaryColor,
+                textColor: Colors.white,
               ),
               const SizedBox(height: 20),
             ],

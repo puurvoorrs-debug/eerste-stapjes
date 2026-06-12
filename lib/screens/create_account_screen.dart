@@ -4,8 +4,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import 'profile_selection_screen.dart';
 import '../providers/locale_provider.dart';
+import '../widgets/sketchy_components.dart';
 
 class CreateAccountScreen extends StatefulWidget {
   const CreateAccountScreen({super.key});
@@ -32,7 +34,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   }
 
   Future<void> _pickImage() async {
-    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
+    final pickedFile =
+        await ImagePicker().pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
         _imageFile = File(pickedFile.path);
@@ -65,24 +68,32 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       }
 
       // Sla de gebruikersinformatie op in Firestore
-      await FirebaseFirestore.instance.collection('users').doc(_currentUser.uid).set({
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_currentUser.uid)
+          .set({
         'uid': _currentUser.uid,
         'displayName': _nameController.text,
         'photoUrl': photoUrl,
-        'language': Provider.of<LocaleProvider>(context, listen: false).locale.languageCode,
+        'language': Provider.of<LocaleProvider>(context, listen: false)
+            .locale
+            .languageCode,
       });
 
       // Navigeer naar het volgende scherm
       if (mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const ProfileSelectionScreen()),
+          SketchyPageRoute(
+              page: const ProfileSelectionScreen()),
         );
       }
     } catch (e) {
       // Toon een foutmelding
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${context.tr('Fout bij het opslaan van profiel', 'Error saving profile')}: $e')),
+          SnackBar(
+              content: Text(
+                  '${context.tr('Fout bij het opslaan van profiel', 'Error saving profile')}: $e')),
         );
       }
     } finally {
@@ -123,7 +134,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                TextButton(onPressed: _pickImage, child: Text(context.tr('Kies een profielfoto', 'Choose a profile picture'))),
+                TextButton(
+                    onPressed: _pickImage,
+                    child: Text(context.tr(
+                        'Kies een profielfoto', 'Choose a profile picture'))),
                 const SizedBox(height: 24),
                 TextFormField(
                   controller: _nameController,
@@ -133,7 +147,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return context.tr('Voer een accountnaam in', 'Please enter an account name');
+                      return context.tr('Voer een accountnaam in',
+                          'Please enter an account name');
                     }
                     return null;
                   },
@@ -145,9 +160,11 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                   ElevatedButton(
                     onPressed: _saveProfile,
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 40, vertical: 15),
                     ),
-                    child: Text(context.tr('Opslaan en doorgaan', 'Save and continue')),
+                    child: Text(
+                        context.tr('Opslaan en doorgaan', 'Save and continue')),
                   ),
               ],
             ),

@@ -8,6 +8,7 @@ import '../models/notification_model.dart';
 import '../models/profile.dart';
 import '../providers/profile_provider.dart';
 import '../providers/locale_provider.dart';
+import '../widgets/sketchy_components.dart';
 import 'daily_entry_detail_screen.dart';
 import 'calendar_screen.dart';
 
@@ -44,41 +45,46 @@ class NotificationsScreen extends StatelessWidget {
     }
   }
 
-  void _handleNotificationTap(BuildContext context, NotificationModel notification, ProfileProvider provider) async {
+  void _handleNotificationTap(BuildContext context,
+      NotificationModel notification, ProfileProvider provider) async {
     if (!notification.isRead) {
       _markAsRead(notification.id);
     }
 
-    if (notification.type == 'like' || 
-        notification.type == 'comment' || 
-        notification.type == 'reply' || 
+    if (notification.type == 'like' ||
+        notification.type == 'comment' ||
+        notification.type == 'reply' ||
         notification.type == 'comment_like' ||
         notification.type == 'new_post' ||
         notification.type == 'download_approved') {
-      
       if (notification.entryId != null) {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => DailyEntryDetailScreen(
+          SketchyPageRoute(
+            page: DailyEntryDetailScreen(
               entryId: notification.entryId!,
               profileId: notification.profileId,
             ),
           ),
         );
       }
-    } else if (notification.type == 'follow_approved') {
-       // Find the profile to navigate to
-       final profileDoc = await FirebaseFirestore.instance.collection('profiles').doc(notification.profileId).get();
-       if (profileDoc.exists) {
-          final profile = Profile.fromMap(profileDoc.data()!, profileDoc.id);
-          if (context.mounted) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => CalendarScreen(profile: profile)),
-            );
-          }
-       }
+    } else if (notification.type == 'follow_approved' ||
+        notification.type == 'nudge' ||
+        notification.type == 'nudge_available') {
+      // Find the profile to navigate to
+      final profileDoc = await FirebaseFirestore.instance
+          .collection('profiles')
+          .doc(notification.profileId)
+          .get();
+      if (profileDoc.exists) {
+        final profile = Profile.fromMap(profileDoc.data()!, profileDoc.id);
+        if (context.mounted) {
+          Navigator.push(
+            context,
+            SketchyPageRoute(page: CalendarScreen(profile: profile)),
+          );
+        }
+      }
     }
   }
 
@@ -86,7 +92,9 @@ class NotificationsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      return Scaffold(body: Center(child: Text(context.tr('Niet ingelogd', 'Not logged in'))));
+      return Scaffold(
+          body: Center(
+              child: Text(context.tr('Niet ingelogd', 'Not logged in'))));
     }
 
     final theme = Theme.of(context);
@@ -116,12 +124,16 @@ class NotificationsScreen extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(child: Text(context.tr('Fout bij laden van meldingen.', 'Error loading notifications.')));
+            return Center(
+                child: Text(context.tr('Fout bij laden van meldingen.',
+                    'Error loading notifications.')));
           }
 
           final docs = snapshot.data?.docs ?? [];
           if (docs.isEmpty) {
-            return Center(child: Text(context.tr('Geen meldingen.', 'No notifications.')));
+            return Center(
+                child:
+                    Text(context.tr('Geen meldingen.', 'No notifications.')));
           }
 
           return ListView.separated(
@@ -187,9 +199,12 @@ class NotificationsScreen extends StatelessWidget {
           '${notif.senderName} wil je profiel volgen.',
           '${notif.senderName} wants to follow your profile.',
         );
-        if (notif.status == 'pending') subtitle = context.tr('Openstaand verzoek', 'Pending request');
-        else if (notif.status == 'approved') subtitle = context.tr('Geaccepteerd', 'Accepted');
-        else if (notif.status == 'rejected') subtitle = context.tr('Geweigerd', 'Declined');
+        if (notif.status == 'pending') {
+          subtitle = context.tr('Openstaand verzoek', 'Pending request');
+        } else if (notif.status == 'approved')
+          subtitle = context.tr('Geaccepteerd', 'Accepted');
+        else if (notif.status == 'rejected')
+          subtitle = context.tr('Geweigerd', 'Declined');
         break;
       case 'follow_request_sent':
         icon = Icons.access_time;
@@ -198,9 +213,12 @@ class NotificationsScreen extends StatelessWidget {
           'Volgverzoek gestuurd naar ${notif.senderName}.',
           'Follow request sent to ${notif.senderName}.',
         );
-        if (notif.status == 'pending') subtitle = context.tr('In afwachting...', 'Pending...');
-        else if (notif.status == 'approved') subtitle = context.tr('Geaccepteerd', 'Accepted');
-        else if (notif.status == 'rejected') subtitle = context.tr('Geweigerd', 'Declined');
+        if (notif.status == 'pending') {
+          subtitle = context.tr('In afwachting...', 'Pending...');
+        } else if (notif.status == 'approved')
+          subtitle = context.tr('Geaccepteerd', 'Accepted');
+        else if (notif.status == 'rejected')
+          subtitle = context.tr('Geweigerd', 'Declined');
         break;
       case 'follow_approved':
         icon = Icons.check_circle;
@@ -217,9 +235,12 @@ class NotificationsScreen extends StatelessWidget {
           '${notif.senderName} wil een foto downloaden.',
           '${notif.senderName} wants to download a photo.',
         );
-        if (notif.status == 'pending') subtitle = context.tr('Openstaand verzoek', 'Pending request');
-        else if (notif.status == 'approved') subtitle = context.tr('Geaccepteerd', 'Accepted');
-        else if (notif.status == 'rejected') subtitle = context.tr('Geweigerd', 'Declined');
+        if (notif.status == 'pending') {
+          subtitle = context.tr('Openstaand verzoek', 'Pending request');
+        } else if (notif.status == 'approved')
+          subtitle = context.tr('Geaccepteerd', 'Accepted');
+        else if (notif.status == 'rejected')
+          subtitle = context.tr('Geweigerd', 'Declined');
         break;
       case 'download_approved':
         icon = Icons.file_download_done;
@@ -227,6 +248,30 @@ class NotificationsScreen extends StatelessWidget {
         title = context.tr(
           'Je downloadverzoek is goedgekeurd.',
           'Your download request has been approved.',
+        );
+        break;
+      case 'nudge':
+        icon = Icons.touch_app;
+        iconColor = Colors.purple;
+        title = context.tr(
+          '${notif.senderName} heeft je een por gegeven.',
+          '${notif.senderName} gave you a nudge.',
+        );
+        subtitle = context.tr(
+          'Tijd voor een nieuwe foto!',
+          'Time for a new photo!',
+        );
+        break;
+      case 'nudge_available':
+        icon = Icons.notifications_active;
+        iconColor = Colors.orangeAccent;
+        title = context.tr(
+          'Geef de beheerders van ${notif.senderName} een por.',
+          'Give the admins of ${notif.senderName} a nudge.',
+        );
+        subtitle = context.tr(
+          'Er is vandaag nog geen foto geplaatst.',
+          'No photo has been posted today.',
         );
         break;
       default:
@@ -241,20 +286,23 @@ class NotificationsScreen extends StatelessWidget {
     final isUnread = !notif.isRead;
 
     return Container(
-      color: isUnread ? theme.primaryColor.withOpacity(0.05) : Colors.transparent,
+      color:
+          isUnread ? theme.primaryColor.withOpacity(0.05) : Colors.transparent,
       child: ListTile(
         onTap: () => _handleNotificationTap(context, notif, provider),
         leading: Stack(
           children: [
             CircleAvatar(
               backgroundColor: iconColor.withOpacity(0.2),
-              backgroundImage: notif.senderPhotoUrl != null ? NetworkImage(notif.senderPhotoUrl!) : null,
+              backgroundImage: notif.senderPhotoUrl != null
+                  ? NetworkImage(notif.senderPhotoUrl!)
+                  : null,
               child: notif.senderPhotoUrl == null
                   ? Icon(icon, color: iconColor)
                   : null,
             ),
             if (notif.senderPhotoUrl != null)
-               Positioned(
+              Positioned(
                 right: 0,
                 bottom: 0,
                 child: Container(
@@ -270,16 +318,23 @@ class NotificationsScreen extends StatelessWidget {
         ),
         title: Text(
           title,
-          style: TextStyle(fontWeight: isUnread ? FontWeight.bold : FontWeight.normal),
+          style: TextStyle(
+              fontWeight: isUnread ? FontWeight.bold : FontWeight.normal),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (subtitle.isNotEmpty) 
-              Text(subtitle, style: TextStyle(color: _getStatusColor(notif.status))),
+            if (subtitle.isNotEmpty)
+              Text(subtitle,
+                  style: TextStyle(color: _getStatusColor(notif.status))),
             const SizedBox(height: 4),
-            Text(timeago.format(notif.timestamp.toDate(), locale: context.tr('nl', 'en')), style: const TextStyle(fontSize: 12, color: Colors.grey)),
-            if (notif.status == 'pending' && (notif.type == 'follow_request' || notif.type == 'download_request'))
+            Text(
+                timeago.format(notif.timestamp.toDate(),
+                    locale: context.tr('nl', 'en')),
+                style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            if (notif.status == 'pending' &&
+                (notif.type == 'follow_request' ||
+                    notif.type == 'download_request'))
               _buildActionButtons(context, notif, provider),
           ],
         ),
@@ -299,7 +354,8 @@ class NotificationsScreen extends StatelessWidget {
     return Colors.grey;
   }
 
-  Widget _buildActionButtons(BuildContext context, NotificationModel notif, ProfileProvider provider) {
+  Widget _buildActionButtons(
+      BuildContext context, NotificationModel notif, ProfileProvider provider) {
     return Padding(
       padding: const EdgeInsets.only(top: 8.0),
       child: Row(
@@ -313,12 +369,15 @@ class NotificationsScreen extends StatelessWidget {
             ),
             onPressed: () async {
               if (notif.type == 'follow_request') {
-                await provider.respondToFollowRequest(notif.profileId, notif.senderId!, 'approved');
-              } else if (notif.type == 'download_request' && notif.entryId != null) {
+                await provider.respondToFollowRequest(
+                    notif.profileId, notif.senderId!, 'approved');
+              } else if (notif.type == 'download_request' &&
+                  notif.entryId != null) {
                 // Aanname: date kan gehaald worden uit entryId (formaat 'YYYY-MM-DD')
                 final date = DateTime.tryParse(notif.entryId!);
                 if (date != null) {
-                  await provider.respondToDownloadRequest(notif.profileId, date, notif.senderId!, 'approved');
+                  await provider.respondToDownloadRequest(
+                      notif.profileId, date, notif.senderId!, 'approved');
                 }
               }
               _deleteNotification(notif.id);
@@ -335,12 +394,15 @@ class NotificationsScreen extends StatelessWidget {
             ),
             onPressed: () async {
               if (notif.type == 'follow_request') {
-                await provider.respondToFollowRequest(notif.profileId, notif.senderId!, 'rejected');
-              } else if (notif.type == 'download_request' && notif.entryId != null) {
-                 final date = DateTime.tryParse(notif.entryId!);
-                 if (date != null) {
-                  await provider.respondToDownloadRequest(notif.profileId, date, notif.senderId!, 'rejected');
-                 }
+                await provider.respondToFollowRequest(
+                    notif.profileId, notif.senderId!, 'rejected');
+              } else if (notif.type == 'download_request' &&
+                  notif.entryId != null) {
+                final date = DateTime.tryParse(notif.entryId!);
+                if (date != null) {
+                  await provider.respondToDownloadRequest(
+                      notif.profileId, date, notif.senderId!, 'rejected');
+                }
               }
               _deleteNotification(notif.id);
             },

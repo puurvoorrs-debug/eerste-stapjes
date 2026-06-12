@@ -120,6 +120,22 @@ function getTranslation(key, language, params = {}) {
       nl: `${params.likerName} vindt jouw reactie leuk.`,
       en: `${params.likerName} liked your comment.`,
     },
+    nudge_title: {
+      nl: "Een por ontvangen!",
+      en: "Received a nudge!",
+    },
+    nudge_body: {
+      nl: `${params.senderName} heeft je een por gegeven om een foto van ${params.profileName} te plaatsen.`,
+      en: `${params.senderName} nudged you to post a photo of ${params.profileName}.`,
+    },
+    nudge_available_title: {
+      nl: "Nieuwe foto herinnering",
+      en: "New photo reminder",
+    },
+    nudge_available_body: {
+      nl: `Er is vandaag nog niets geüpload voor ${params.profileName}. Geef de beheerders een por!`,
+      en: `Nothing has been uploaded for ${params.profileName} today. Give the admins a nudge!`,
+    },
   };
 
   const entry = translations[key];
@@ -736,4 +752,150 @@ exports.sendNotificationOnCommentLike = functions.firestore
       } catch (e) {
         console.error("Error sending comment like notification:", e);
       }
+    });
+
+// Nieuwe functie: Notificeer eigenaar bij een por (nudge)
+exports.sendNotificationOnNudge = functions.firestore
+    .document("profiles/{profileId}/nudges/{dateString}")
+    .onWrite(async (change, context) => {
+      const profileId = context.params.profileId;
+      const dateString = context.params.dateString;
+
+      const beforeData = change.before.exists ? change.before.data() : {};
+      const afterData = change.after.exists ? change.after.data() : {};
+
+      const beforeSenders = beforeData.nudgeSenders || [];
+      const afterSenders = afterData.nudgeSenders || [];
+
+      // Zoek de nieuwe nudger
+      const newNudgerId = afterSenders.find((uid) => !beforeSenders.includes(uid));
+      if (!newNudgerId) return;
+
+      console.log(`New nudge from ${newNudgerId} for profile ${profileId} on date ${dateString}`);
+
+      const profileDoc = await admin.firestore().collection("profiles").doc(profileId).get();
+      if (!profileDoc.exists) {
+        console.error(`Profile document ${profileId} not found.`);
+        return;
+      }
+
+      const profileData = profileDoc.data();
+      const ownerId = profileData.ownerId;
+      const profileName = profileData.name || "een profiel";
+
+      // Als de eigenaar zichzelf nudget (zou niet moeten kunnen), doe niets
+      if (ownerId === newNudgerId) return;
+
+      const nudgerDoc = await admin.firestore().collection("users").doc(newNudgerId).get();
+      const senderName = nudgerDoc.exists ? (nudgerDoc.data().displayName || "Iemand") : "Iemand";
+      const senderPhotoUrl = nudgerDoc.exists ? nudgerDoc.data().photoUrl : null;
+
+      // Maak in-app notificatie document voor de eigenaar
+      const notificationId = `nudge_${profileId}_${dateString}_${newNudgerId}`;
+      await createNotification(ownerId, notificationId, {
+        type: "nudge",
+        profileId: profileId,
+        senderId: newNudgerId,
+        senderName: senderName,
+        senderPhotoUrl: senderPhotoUrl,
+        entryId: dateString,
+      });
+
+      // Stuur push-notificatie via FCM
+      const ownerUserDoc = await admin.firestore().collection("users").doc(ownerId).get();
+      if (ownerUserDoc.exists && ownerUserDoc.data().fcmToken) {
+        const language = ownerUserDoc.data().language || "nl";
+        const message = {
+          notification: {
+            title: getTranslation("nudge_title", language),
+            body: getTranslation("nudge_body", language, { senderName, profileName }),
+          },
+          token: ownerUserDoc.data().fcmToken,
+          data: {
+            type: "nudge",
+            profileId: profileId,
+            entryId: dateString,
+          },
+        };
+        try {
+          await admin.messaging().send(message);
+          console.log(`Nudge push notification successfully sent to owner: ${ownerId}`);
+        } catch (error) {
+          console.error("Error sending nudge push notification:", error);
+        }
+      }
+    });
+
+// Nieuwe functie: send daily nudge reminders to followers at 07:30
+exports.sendDailyNudgeRemindersToFollowers = functions.pubsub
+    .schedule("every day 07:30")
+    .onRun(async (context) => {
+      console.log("Running daily nudge reminder for followers function.");
+
+      const db = admin.firestore();
+      const profilesSnapshot = await db.collection("profiles").get();
+
+      const today = new Date();
+      const dateString = today.toISOString().split("T")[0];
+
+      for (const profileDoc of profilesSnapshot.docs) {
+        const profileId = profileDoc.id;
+        const profileData = profileDoc.data();
+        const profileName = profileData.name || "een baby";
+        const followerIds = profileData.followers || [];
+
+        if (followerIds.length === 0) {
+          continue;
+        }
+
+        const entryRef = db.collection("profiles").doc(profileId).collection("daily_entries").doc(dateString);
+        const entryDoc = await entryRef.get();
+
+        if (!entryDoc.exists) {
+          // No post for this profile today yet, notify followers they can send a nudge.
+          console.log(`Profile ${profileName} (${profileId}) has no post today. Notifying followers.`);
+          
+          const messages = [];
+          for (const followerId of followerIds) {
+            // Maak in-app notificatie document voor de volger
+            const notificationId = `nudge_avail_${profileId}_${dateString}`;
+            await createNotification(followerId, notificationId, {
+              type: "nudge_available",
+              profileId: profileId,
+              entryId: dateString,
+              senderId: profileData.ownerId,
+              senderName: profileName,
+            });
+
+            const followerDoc = await db.collection("users").doc(followerId).get();
+            if (followerDoc.exists && followerDoc.data().fcmToken) {
+              const fcmToken = followerDoc.data().fcmToken;
+              const language = followerDoc.data().language || "nl";
+              messages.push({
+                notification: {
+                  title: getTranslation("nudge_available_title", language, { profileName }),
+                  body: getTranslation("nudge_available_body", language, { profileName }),
+                },
+                token: fcmToken,
+                data: {
+                  type: "nudge_available",
+                  profileId: profileId,
+                  entryId: dateString,
+                },
+              });
+            }
+          }
+
+          if (messages.length > 0) {
+            try {
+              await admin.messaging().sendEach(messages);
+              console.log(`Successfully sent nudge availability notifications to followers of ${profileName}.`);
+            } catch (error) {
+              console.error(`Error sending nudge availability notification to followers of ${profileName}:`, error);
+            }
+          }
+        }
+      }
+
+      return null;
     });

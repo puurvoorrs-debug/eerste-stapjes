@@ -1,14 +1,15 @@
-import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../providers/locale_provider.dart';
 import '../providers/profile_provider.dart';
 import '../services/auth_service.dart';
 import '../models/profile.dart';
 import '../models/app_exception.dart';
-import '../widgets/animated_footsteps_circle.dart';
+import '../widgets/animated_sketchy_icons.dart';
+import '../widgets/sketchy_components.dart';
 import 'create_profile_screen.dart';
 import 'calendar_screen.dart';
 import 'account_settings_screen.dart';
@@ -34,7 +35,8 @@ class ProfileSelectionScreen extends StatelessWidget {
               Navigator.pop(context);
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const AccountSettingsScreen()),
+                SketchyPageRoute(
+                    page: const AccountSettingsScreen()),
               );
             },
             child: Text(context.tr('Naar Instellingen', 'To Settings')),
@@ -46,7 +48,8 @@ class ProfileSelectionScreen extends StatelessWidget {
 
   void _showFollowDialog(BuildContext context) {
     final codeController = TextEditingController();
-    final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+    final profileProvider =
+        Provider.of<ProfileProvider>(context, listen: false);
 
     showDialog(
       context: context,
@@ -55,7 +58,8 @@ class ProfileSelectionScreen extends StatelessWidget {
         content: TextField(
           controller: codeController,
           decoration: InputDecoration(
-            labelText: context.tr('Voer de unieke code in', 'Enter the unique code'),
+            labelText:
+                context.tr('Voer de unieke code in', 'Enter the unique code'),
           ),
         ),
         actions: [
@@ -66,26 +70,36 @@ class ProfileSelectionScreen extends StatelessWidget {
           ElevatedButton(
             onPressed: () async {
               try {
-                final result = await profileProvider.followProfile(codeController.text);
+                final result =
+                    await profileProvider.followProfile(codeController.text);
                 if (context.mounted) {
                   Navigator.pop(context);
                   String message;
                   switch (result) {
                     case 'request_sent':
-                      message = context.tr('Volgverzoek verstuurd! Je krijgt toegang zodra de eigenaar dit goedkeurt.', 'Follow request sent! You will get access once the owner approves it.');
+                      message = context.tr(
+                          'Volgverzoek verstuurd! Je krijgt toegang zodra de eigenaar dit goedkeurt.',
+                          'Follow request sent! You will get access once the owner approves it.');
                       break;
                     case 'already_requested':
-                      message = context.tr('Je hebt al een openstaand volgverzoek voor dit profiel.', 'You already have a pending follow request for this profile.');
+                      message = context.tr(
+                          'Je hebt al een openstaand volgverzoek voor dit profiel.',
+                          'You already have a pending follow request for this profile.');
                       break;
                     case 'already_following':
-                      message = context.tr('Je volgt dit profiel al.', 'You are already following this profile.');
+                      message = context.tr('Je volgt dit profiel al.',
+                          'You are already following this profile.');
                       break;
                     case 'own_profile':
-                      message = context.tr('Je kunt je eigen profiel niet volgen.', 'You cannot follow your own profile.');
+                      message = context.tr(
+                          'Je kunt je eigen profiel niet volgen.',
+                          'You cannot follow your own profile.');
                       break;
                     case 'invalid_code':
                     default:
-                      message = context.tr('Ongeldige code. Controleer de code en probeer het opnieuw.', 'Invalid code. Please check the code and try again.');
+                      message = context.tr(
+                          'Ongeldige code. Controleer de code en probeer het opnieuw.',
+                          'Invalid code. Please check the code and try again.');
                   }
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text(message)),
@@ -95,15 +109,21 @@ class ProfileSelectionScreen extends StatelessWidget {
                 if (context.mounted) {
                   Navigator.pop(context);
                   final translatedMessage = e.message.contains('niet gevonden')
-                      ? context.tr('Gebruikersprofiel niet gevonden.', 'User profile not found.')
-                      : context.tr('Update je profiel met een naam en foto om anderen te volgen.', 'Update your profile with a name and photo to follow others.');
+                      ? context.tr('Gebruikersprofiel niet gevonden.',
+                          'User profile not found.')
+                      : context.tr(
+                          'Update je profiel met een naam en foto om anderen te volgen.',
+                          'Update your profile with a name and photo to follow others.');
                   _showIncompleteProfileDialog(context, translatedMessage);
                 }
               } catch (e) {
-                 if (context.mounted) {
+                if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(context.tr('Er is een onbekende fout opgetreden.', 'An unknown error occurred.'))),
+                    SnackBar(
+                        content: Text(context.tr(
+                            'Er is een onbekende fout opgetreden.',
+                            'An unknown error occurred.'))),
                   );
                 }
               }
@@ -120,7 +140,9 @@ class ProfileSelectionScreen extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(context.tr('Profiel Ontvolgen', 'Unfollow Profile')),
-        content: Text(context.tr('Weet je zeker dat je ${profile.name} wilt ontvolgen? Je kunt de momenten van dit profiel dan niet meer bekijken.', 'Are you sure you want to unfollow ${profile.name}? You will no longer be able to view the moments of this profile.')),
+        content: Text(context.tr(
+            'Weet je zeker dat je ${profile.name} wilt ontvolgen? Je kunt de momenten van dit profiel dan niet meer bekijken.',
+            'Are you sure you want to unfollow ${profile.name}? You will no longer be able to view the moments of this profile.')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -130,19 +152,25 @@ class ProfileSelectionScreen extends StatelessWidget {
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red[300]),
             onPressed: () async {
               try {
-                final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+                final profileProvider =
+                    Provider.of<ProfileProvider>(context, listen: false);
                 await profileProvider.unfollowProfile(profile.id!);
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(context.tr('Je bent gestopt met volgen.', 'You stopped following.'))),
+                    SnackBar(
+                        content: Text(context.tr('Je bent gestopt met volgen.',
+                            'You stopped following.'))),
                   );
                 }
               } catch (e) {
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(context.tr('Er is een onbekende fout opgetreden.', 'An unknown error occurred.'))),
+                    SnackBar(
+                        content: Text(context.tr(
+                            'Er is een onbekende fout opgetreden.',
+                            'An unknown error occurred.'))),
                   );
                 }
               }
@@ -154,13 +182,45 @@ class ProfileSelectionScreen extends StatelessWidget {
     );
   }
 
+  void _showLogoutDialog(BuildContext context) {
+    final authService = AuthService();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(context.tr('Uitloggen', 'Logout')),
+        content: Text(context.tr('Weet je zeker dat je wilt uitloggen?',
+            'Are you sure you want to log out?')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(context.tr('Annuleren', 'Cancel')),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red[300],
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              Navigator.pop(context);
+              await authService.signOut();
+            },
+            child: Text(context.tr('Uitloggen', 'Logout')),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUser = FirebaseAuth.instance.currentUser;
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final textColor = isDark ? const Color(0xFFEFEBE9) : const Color(0xFF2D2B2A);
 
     // Get display name or default to user
-    final displayName = currentUser?.displayName?.split(' ').first ?? context.tr('Gebruiker', 'User');
+    final displayName = currentUser?.displayName?.split(' ').first ??
+        context.tr('Gebruiker', 'User');
 
     return Scaffold(
       body: SafeArea(
@@ -177,15 +237,19 @@ class ProfileSelectionScreen extends StatelessWidget {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const AnimatedFootstepsCircle(size: 80),
-                            const SizedBox(height: 24),
                             Text(
                               context.tr('Welkom!', 'Welcome!'),
                               style: theme.textTheme.headlineSmall?.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 16),
+                            SvgPicture.asset(
+                              'assets/images/Eerste stapjes - Logo nieuw oranje.svg',
+                              height: 64,
+                              colorFilter: ColorFilter.mode(textColor, BlendMode.srcIn),
+                            ),
+                            const SizedBox(height: 24),
                             Text(
                               context.tr(
                                 'Maak een eigen profiel aan om momenten bij te houden, of volg iemand om zijn of haar momenten te bekijken.',
@@ -193,40 +257,33 @@ class ProfileSelectionScreen extends StatelessWidget {
                               ),
                               textAlign: TextAlign.center,
                               style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                                color: theme.colorScheme.onSurface
+                                    .withOpacity(0.6),
                                 height: 1.5,
                               ),
                             ),
                             const SizedBox(height: 36),
                             // Nieuw profiel aanmaken
-                            FilledButton.icon(
-                              icon: const Icon(Icons.add),
-                              label: Text(context.tr('Nieuw profiel aanmaken', 'Create new profile')),
+                            SketchyButton(
+                              label: context.tr('Nieuw profiel aanmaken', 'Create new profile'),
+                              fillColor: const Color(0xFFF38B4B),
+                              textColor: Colors.white,
+                              icon: const Icon(Icons.add, color: Colors.white),
                               onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const OnboardingScreen(initialPage: 6),
-                                  ),
-                                );
+                                 Navigator.push(
+                                   context,
+                                   SketchyPageRoute(
+                                     page: const OnboardingScreen(initialPage: 6),
+                                   ),
+                                 );
                               },
-                              style: FilledButton.styleFrom(
-                                minimumSize: const Size(double.infinity, 54),
-                                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              ),
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 16),
                             // Profiel volgen
-                            OutlinedButton.icon(
+                            SketchyButton(
+                              label: context.tr('Profiel volgen', 'Follow profile'),
                               icon: const Icon(Icons.person_add_alt_1_outlined),
-                              label: Text(context.tr('Profiel volgen', 'Follow profile')),
                               onPressed: () => _showFollowDialog(context),
-                              style: OutlinedButton.styleFrom(
-                                minimumSize: const Size(double.infinity, 54),
-                                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              ),
                             ),
                           ],
                         ),
@@ -234,8 +291,12 @@ class ProfileSelectionScreen extends StatelessWidget {
                     );
                   }
 
-                  final ownProfiles = provider.profiles.where((p) => p.ownerId == currentUser?.uid).toList();
-                  final followedProfiles = provider.profiles.where((p) => p.ownerId != currentUser?.uid).toList();
+                  final ownProfiles = provider.profiles
+                      .where((p) => p.ownerId == currentUser?.uid)
+                      .toList();
+                  final followedProfiles = provider.profiles
+                      .where((p) => p.ownerId != currentUser?.uid)
+                      .toList();
 
                   // If the user has no own profiles but does follow profiles,
                   // show the followed profiles prominently (large card style).
@@ -253,28 +314,37 @@ class ProfileSelectionScreen extends StatelessWidget {
                             // --- Normal layout when user has own profiles ---
                             Text(
                               context.tr('Mijn Profielen', 'My Profiles'),
-                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 16),
                             _buildOwnProfilesSection(ownProfiles, context),
                             const SizedBox(height: 32),
                             if (followedProfiles.isNotEmpty) ...[
                               Text(
-                                context.tr('Gevolgde Profielen', 'Followed Profiles'),
-                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                context.tr(
+                                    'Gevolgde Profielen', 'Followed Profiles'),
+                                style: const TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.bold),
                               ),
                               const SizedBox(height: 16),
-                              _buildFollowedProfilesSection(followedProfiles, context),
+                              _buildFollowedProfilesSection(
+                                  followedProfiles, context),
                             ],
                           ] else if (followedProfiles.isNotEmpty) ...[
                             // --- Prominent layout when user only follows profiles ---
                             Text(
-                              context.tr('Gevolgde Profielen', 'Followed Profiles'),
-                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              context.tr(
+                                  'Gevolgde Profielen', 'Followed Profiles'),
+                              style: const TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 16),
-                            _buildFollowedProfilesProminentSection(followedProfiles, context),
+                            _buildFollowedProfilesProminentSection(
+                                followedProfiles, context),
                           ],
+                          const SizedBox(height: 16),
+                          _buildTipOfTheDayCard(context),
                           const SizedBox(height: 40),
                         ],
                       ),
@@ -302,69 +372,60 @@ class ProfileSelectionScreen extends StatelessWidget {
   }
 
   Widget _buildTopBar(BuildContext context, String name) {
-    final authService = AuthService();
     final theme = Theme.of(context);
-    
+
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color?.withOpacity(0.7) ?? Colors.white.withOpacity(0.7),
-        borderRadius: BorderRadius.circular(32),
-        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(32),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            context.tr('Hoi, $name 👋', 'Hi, $name 👋'),
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
-            ),
-          ),
-          Row(
+      child: SketchyContainer(
+        padding: 0,
+        borderColor: const Color(0xFF2D2B2A),
+        borderRadius: 0.0,
+        showShadow: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildNotificationBell(context),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.settings_outlined),
-                onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const AccountSettingsScreen()));
-                },
-                tooltip: context.tr('Instellingen', 'Settings'),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+              Text(
+                context.tr('Hoi, $name 👋', 'Hi, $name 👋'),
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: theme.colorScheme.onSurface,
+                ),
               ),
-              const SizedBox(width: 16),
-              IconButton(
-                icon: const Icon(Icons.logout_outlined),
-                onPressed: () async {
-                  await authService.signOut();
-                },
-                tooltip: context.tr('Uitloggen', 'Logout'),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+              Row(
+                children: [
+                  _buildNotificationBell(context),
+                  const SizedBox(width: 12),
+                  Tooltip(
+                    message: context.tr('Instellingen', 'Settings'),
+                    child: AnimatedSettingsIcon(
+                      color: theme.colorScheme.onSurface,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          SketchyPageRoute(
+                            page: const AccountSettingsScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Tooltip(
+                    message: context.tr('Uitloggen', 'Logout'),
+                    child: AnimatedLogoutIcon(
+                      color: theme.colorScheme.onSurface,
+                      onTap: () => _showLogoutDialog(context),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
+        ),
       ),
-    ),
-  ),
-),
     );
   }
 
@@ -385,48 +446,22 @@ class ProfileSelectionScreen extends StatelessWidget {
           unreadCount = snapshot.data!.docs.length;
         }
 
-        return Stack(
-          alignment: Alignment.center,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.notifications_none_outlined),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const NotificationsScreen()),
-                );
-              },
-              tooltip: context.tr('Meldingen', 'Notifications'),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-            ),
-            if (unreadCount > 0)
-              Positioned(
-                right: -2,
-                top: -2,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text(
-                    unreadCount > 9 ? '9+' : unreadCount.toString(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-          ],
+        return _AnimatedNotificationBell(
+          unreadCount: unreadCount,
+          onTap: () {
+            Navigator.push(
+              context,
+              SketchyPageRoute(
+                  page: const NotificationsScreen()),
+            );
+          },
         );
       },
     );
   }
 
-  Widget _buildOwnProfilesSection(List<Profile> profiles, BuildContext context) {
+  Widget _buildOwnProfilesSection(
+      List<Profile> profiles, BuildContext context) {
     return SizedBox(
       height: 280, // Increased height for larger cards
       child: ListView.builder(
@@ -451,105 +486,118 @@ class ProfileSelectionScreen extends StatelessWidget {
   }
 
   Widget _buildProfileCard(BuildContext context, Profile profile) {
-    final theme = Theme.of(context);
-    
-    return GestureDetector(
+
+    return ScaleOnTap(
       onTap: () {
-        Navigator.push(context, MaterialPageRoute(builder: (context) => CalendarScreen(profile: profile)));
+        Navigator.push(
+            context,
+            SketchyPageRoute(
+                page: CalendarScreen(profile: profile)));
       },
       child: Container(
-        width: 200, // Increased width
+        width: 200,
         decoration: BoxDecoration(
-          color: theme.cardTheme.color,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 15,
-              offset: const Offset(0, 6),
-            ),
-          ],
+          color: Theme.of(context).cardTheme.color,
+          borderRadius: BorderRadius.circular(20.0),
+          border: Border.all(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xFFEFEBE9).withOpacity(0.15)
+                : Colors.grey[200]!,
+            width: 1.0,
+          ),
         ),
         child: Stack(
           fit: StackFit.expand,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(24),
-              child: profile.profileImageUrl != null && profile.profileImageUrl!.isNotEmpty
+              borderRadius: BorderRadius.circular(20),
+              child: profile.profileImageUrl != null &&
+                      profile.profileImageUrl!.isNotEmpty
                   ? Image.network(
                       profile.profileImageUrl!,
                       fit: BoxFit.cover,
                     )
                   : Container(
-                      color: Colors.grey[300],
-                      child: const Icon(Icons.person, size: 80, color: Colors.grey),
+                      color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1E1E1E) : Colors.grey[100],
+                      child: Icon(Icons.person,
+                          size: 80, color: Theme.of(context).colorScheme.onSurface),
                     ),
             ),
-            // Glassmorphism overlay for bottom text
+            // Clean bottom overlay
             Positioned(
               left: 0,
               right: 0,
               bottom: 0,
-              height: 100,
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: theme.cardTheme.color?.withOpacity(0.6) ?? Colors.white.withOpacity(0.6),
-                      border: Border(top: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5)),
+              height: 90,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardTheme.color,
+                  border: Border(
+                    top: BorderSide(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFFEFEBE9).withOpacity(0.15)
+                          : Colors.grey[200]!,
+                      width: 1.0,
                     ),
                   ),
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
                 ),
-              ),
-            ),
-            Positioned(
-              left: 16,
-              bottom: 16,
-              right: 56, // Leave space for edit button
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    profile.name,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20,
-                      color: theme.colorScheme.onSurface,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    context.tr('Bekijk momenten', 'View moments'),
-                    style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7), fontSize: 13),
-                  ),
-                ],
-              ),
-            ),
-            Positioned(
-              right: 12,
-              bottom: 12,
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => CreateProfileScreen(profile: profile)));
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: theme.primaryColor,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
+                padding: const EdgeInsets.all(12.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            profile.name,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            context.tr('Bekijk', 'View'),
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: const Icon(Icons.edit_outlined, size: 20, color: Colors.white),
+                    ),
+                    // Edit button
+                    ScaleOnTap(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          SketchyPageRoute(
+                            page: CreateProfileScreen(profile: profile),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).cardTheme.color,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? const Color(0xFFEFEBE9).withOpacity(0.15)
+                                : Colors.grey[300]!,
+                            width: 1.0,
+                          ),
+                        ),
+                        child: Icon(Icons.edit_outlined,
+                            size: 16, color: Theme.of(context).colorScheme.onSurface),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -560,34 +608,41 @@ class ProfileSelectionScreen extends StatelessWidget {
   }
 
   Widget _buildNewProfileCard(BuildContext context) {
-    final theme = Theme.of(context);
-    
-    return GestureDetector(
+    return ScaleOnTap(
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => const OnboardingScreen(initialPage: 6),
+          SketchyPageRoute(
+            page: const OnboardingScreen(initialPage: 6),
           ),
         );
       },
       child: Container(
-        width: 120, // Slightly wider
+        width: 120,
         decoration: BoxDecoration(
-          color: theme.colorScheme.secondary, // The blush peach color
-          borderRadius: BorderRadius.circular(24),
+          color: Theme.of(context).brightness == Brightness.dark
+              ? const Color(0xFFFFF1DC).withOpacity(0.15)
+              : const Color(0xFFFFF1DC),
+          borderRadius: BorderRadius.circular(20.0),
+          border: Border.all(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xFFFFF1DC).withOpacity(0.3)
+                : Colors.transparent,
+            width: 1.0,
+          ),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.add, size: 40, color: theme.primaryColor),
+            Icon(Icons.add, size: 36, color: Theme.of(context).colorScheme.onSurface),
             const SizedBox(height: 8),
             Text(
               context.tr('Nieuw\nprofiel', 'New\nprofile'),
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: theme.textTheme.bodyLarge?.color,
-                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.onSurface,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
               ),
             ),
           ],
@@ -598,7 +653,8 @@ class ProfileSelectionScreen extends StatelessWidget {
 
   /// Shows followed profiles in the large horizontal card style, used when
   /// the user has no own profiles so followed profiles are the primary focus.
-  Widget _buildFollowedProfilesProminentSection(List<Profile> profiles, BuildContext context) {
+  Widget _buildFollowedProfilesProminentSection(
+      List<Profile> profiles, BuildContext context) {
     return SizedBox(
       height: 280,
       child: ListView.builder(
@@ -616,106 +672,111 @@ class ProfileSelectionScreen extends StatelessWidget {
           }
 
           final profile = profiles[index];
-          final theme = Theme.of(context);
 
           return Padding(
             padding: EdgeInsets.only(left: index == 0 ? 0 : 16.0),
-            child: GestureDetector(
+            child: ScaleOnTap(
               onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => CalendarScreen(profile: profile)));
+                Navigator.push(
+                    context,
+                    SketchyPageRoute(
+                        page: CalendarScreen(profile: profile)));
               },
               child: Container(
                 width: 200,
                 decoration: BoxDecoration(
-                  color: theme.cardTheme.color,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
-                      blurRadius: 15,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
+                  color: Theme.of(context).cardTheme.color,
+                  borderRadius: BorderRadius.circular(20.0),
+                  border: Border.all(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFFEFEBE9).withOpacity(0.15)
+                        : Colors.grey[200]!,
+                    width: 1.0,
+                  ),
                 ),
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(24),
-                      child: profile.profileImageUrl != null && profile.profileImageUrl!.isNotEmpty
+                      borderRadius: BorderRadius.circular(20),
+                      child: profile.profileImageUrl != null &&
+                              profile.profileImageUrl!.isNotEmpty
                           ? Image.network(
                               profile.profileImageUrl!,
                               fit: BoxFit.cover,
                             )
                           : Container(
-                              color: Colors.grey[300],
-                              child: const Icon(Icons.person, size: 80, color: Colors.grey),
+                              color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1E1E1E) : Colors.grey[100],
+                              child: Icon(Icons.person,
+                                  size: 80, color: Theme.of(context).colorScheme.onSurface),
                             ),
                     ),
-                    // Glassmorphism overlay for bottom text
                     Positioned(
                       left: 0,
                       right: 0,
                       bottom: 0,
-                      height: 100,
-                      child: ClipRRect(
-                        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: theme.cardTheme.color?.withOpacity(0.6) ?? Colors.white.withOpacity(0.6),
-                              border: Border(top: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5)),
+                      height: 90,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).cardTheme.color,
+                          border: Border(
+                            top: BorderSide(
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? const Color(0xFFEFEBE9).withOpacity(0.15)
+                                  : Colors.grey[200]!,
+                              width: 1.0,
                             ),
                           ),
+                          borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
                         ),
-                      ),
-                    ),
-                    Positioned(
-                      left: 16,
-                      bottom: 16,
-                      right: 56,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            profile.name,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            context.tr('Bekijk momenten', 'View moments'),
-                            style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.7), fontSize: 13),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Unfollow button (bottom-right)
-                    Positioned(
-                      right: 12,
-                      bottom: 12,
-                      child: GestureDetector(
-                        onTap: () => _showUnfollowDialog(context, profile),
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.red[300],
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
+                        padding: const EdgeInsets.all(12.0),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    profile.name,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      color: Theme.of(context).colorScheme.onSurface,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    context.tr('Gevolgde baby', 'Followed baby'),
+                                    style: TextStyle(
+                                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                          child: const Icon(Icons.person_remove_outlined, size: 20, color: Colors.white),
+                            ),
+                            GestureDetector(
+                              onTap: () => _showUnfollowDialog(context, profile),
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).brightness == Brightness.dark
+                                      ? Colors.red[950]?.withOpacity(0.3)
+                                      : Colors.red[50],
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.red[200]!,
+                                    width: 1.0,
+                                  ),
+                                ),
+                                child: Icon(Icons.person_remove_outlined,
+                                    size: 16, color: Colors.red[300]),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -729,7 +790,8 @@ class ProfileSelectionScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFollowedProfilesSection(List<Profile> profiles, BuildContext context) {
+  Widget _buildFollowedProfilesSection(
+      List<Profile> profiles, BuildContext context) {
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -737,33 +799,49 @@ class ProfileSelectionScreen extends StatelessWidget {
       separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final profile = profiles[index];
-        return GestureDetector(
+        return ScaleOnTap(
           onTap: () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => CalendarScreen(profile: profile)));
+            Navigator.push(
+                context,
+                SketchyPageRoute(
+                    page: CalendarScreen(profile: profile)));
           },
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Theme.of(context).cardTheme.color,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              borderRadius: BorderRadius.circular(16.0),
+              border: Border.all(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFFEFEBE9).withOpacity(0.15)
+                    : Colors.grey[200]!,
+                width: 1.0,
+              ),
             ),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: Colors.grey[200],
-                  backgroundImage: profile.profileImageUrl != null && profile.profileImageUrl!.isNotEmpty
-                      ? NetworkImage(profile.profileImageUrl!)
-                      : null,
-                  child: profile.profileImageUrl == null || profile.profileImageUrl!.isEmpty
-                      ? const Icon(Icons.person, color: Colors.grey)
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFFEFEBE9).withOpacity(0.15)
+                          : Colors.grey[200]!,
+                      width: 1.0,
+                    ),
+                    image: profile.profileImageUrl != null &&
+                            profile.profileImageUrl!.isNotEmpty
+                        ? DecorationImage(
+                            image: NetworkImage(profile.profileImageUrl!),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                  ),
+                  child: profile.profileImageUrl == null ||
+                          profile.profileImageUrl!.isEmpty
+                      ? Icon(Icons.person, color: Theme.of(context).colorScheme.onSurface)
                       : null,
                 ),
                 const SizedBox(width: 16),
@@ -773,23 +851,27 @@ class ProfileSelectionScreen extends StatelessWidget {
                     children: [
                       Text(
                         profile.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Theme.of(context).colorScheme.onSurface),
                       ),
                       Text(
-                        context.tr('Bekijk profiel', 'View profile'), // Ideally shows "Nieuwe update" or "2 dagen geleden"
-                        style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                        context.tr('Bekijk profiel', 'View profile'),
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                            fontSize: 13),
                       ),
                     ],
                   ),
                 ),
-                // Indicator dot for updates (placeholder logic: always show for first, hide for others for demo)
                 if (index == 0)
                   Container(
                     width: 8,
                     height: 8,
                     margin: const EdgeInsets.only(right: 16),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).primaryColor,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF38B4B),
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -810,14 +892,267 @@ class ProfileSelectionScreen extends StatelessWidget {
   }
 
   Widget _buildFollowProfileButton(BuildContext context, ThemeData theme) {
-    return OutlinedButton.icon(
+    return SketchyButton(
+      label: context.tr('Profiel volgen', 'Follow profile'),
       icon: const Icon(Icons.person_add_alt_1_outlined),
-      label: Text(context.tr('Profiel volgen', 'Follow profile')),
       onPressed: () => _showFollowDialog(context),
-      style: OutlinedButton.styleFrom(
-        minimumSize: const Size(double.infinity, 56), // Full width
-        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+    );
+  }
+
+  Future<List<String>> _loadTips(BuildContext context) async {
+    try {
+      final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+      final isEnglish = localeProvider.locale.languageCode == 'en';
+      final fileName = isEnglish ? 'Tips_en.txt' : 'Tips.txt';
+      final fileContent = await DefaultAssetBundle.of(context)
+          .loadString('assets/tips/$fileName');
+      final lines = fileContent.split('\n');
+      final List<String> parsedTips = [];
+      for (var line in lines) {
+        final trimmed = line.trim();
+        if (trimmed.isEmpty) continue;
+        if (trimmed.startsWith('💤') ||
+            trimmed.startsWith('🍽️') ||
+            trimmed.startsWith('🧸') ||
+            trimmed.startsWith('🛠️') ||
+            trimmed.startsWith('❤️')) {
+          continue;
+        }
+        parsedTips.add(trimmed);
+      }
+      return parsedTips;
+    } catch (e) {
+      final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+      final isEnglish = localeProvider.locale.languageCode == 'en';
+      return [
+        isEnglish
+            ? "Tip of the day: Enjoy the pace of your own baby. Every child develops in their own unique way and speed. Comparing is not necessary!"
+            : "Tip van de dag: Geniet van het tempo van jouw eigen baby. Elk kind ontwikkelt zich op zijn eigen unieke manier en snelheid. Vergelijken is nergens voor nodig!"
+      ];
+    }
+  }
+
+  Widget _buildTipOfTheDayCard(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return FutureBuilder<List<String>>(
+      future: _loadTips(context),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        final tips = snapshot.data!;
+        // Rotate deterministically per day
+        final dayOfYear = DateTime.now()
+            .difference(DateTime(DateTime.now().year, 1, 1))
+            .inDays;
+        final tipIndex = dayOfYear % tips.length;
+        final rawTip = tips[tipIndex];
+
+        // Clean redundant prefix
+        var tipText = rawTip;
+        if (tipText.startsWith('Tip van de dag:')) {
+          tipText = tipText.substring(15).trim();
+        } else if (tipText.startsWith('Tip van de dag :')) {
+          tipText = tipText.substring(16).trim();
+        } else if (tipText.startsWith('Tip of the day:')) {
+          tipText = tipText.substring(15).trim();
+        } else if (tipText.startsWith('Tip of the day :')) {
+          tipText = tipText.substring(16).trim();
+        }
+
+        return SketchyContainer(
+          fillColor: isDark ? const Color(0xFF1E2C23) : const Color(0xFFE8F3ED),
+          borderColor: Colors.transparent,
+          borderRadius: 16.0,
+          padding: 16.0,
+          showShadow: false,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.lightbulb_outline_rounded,
+                color: isDark ? const Color(0xFF8BBCA0) : const Color(0xFF5C9E76),
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      context.tr('Tip van de dag', 'Tip of the day'),
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? const Color(0xFFEFEBE9) : const Color(0xFF2D2B2A),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      tipText,
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.4,
+                        color: isDark
+                            ? const Color(0xFFEFEBE9).withOpacity(0.85)
+                            : const Color(0xFF2D2B2A).withOpacity(0.85),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _AnimatedNotificationBell extends StatefulWidget {
+  final int unreadCount;
+  final VoidCallback onTap;
+
+  const _AnimatedNotificationBell({
+    required this.unreadCount,
+    required this.onTap,
+  });
+
+  @override
+  State<_AnimatedNotificationBell> createState() =>
+      _AnimatedNotificationBellState();
+}
+
+class _AnimatedNotificationBellState extends State<_AnimatedNotificationBell>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _wiggleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    );
+
+    _wiggleAnimation = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.0, end: -0.15)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 10,
       ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: -0.15, end: 0.15)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 10,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.15, end: -0.15)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 10,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: -0.15, end: 0.15)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 10,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.15, end: -0.15)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 10,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: -0.15, end: 0.15)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 10,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.15, end: 0.0)
+            .chain(CurveTween(curve: Curves.easeIn)),
+        weight: 10,
+      ),
+      TweenSequenceItem(
+        tween: ConstantTween<double>(0.0),
+        weight: 30,
+      ),
+    ]).animate(_controller);
+
+    if (widget.unreadCount > 0) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _AnimatedNotificationBell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.unreadCount > 0 && !_controller.isAnimating) {
+      _controller.repeat();
+    } else if (widget.unreadCount == 0 && _controller.isAnimating) {
+      _controller.stop();
+      _controller.reset();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final iconData = widget.unreadCount > 0
+        ? Icons.notifications_active_outlined
+        : Icons.notifications_none_outlined;
+
+    return Stack(
+      alignment: Alignment.center,
+      clipBehavior: Clip.none,
+      children: [
+        AnimatedBuilder(
+          animation: _wiggleAnimation,
+          builder: (context, child) {
+            return Transform.rotate(
+              angle: widget.unreadCount > 0 ? _wiggleAnimation.value : 0.0,
+              alignment: Alignment.topCenter,
+              child: child,
+            );
+          },
+          child: IconButton(
+            icon: Icon(iconData),
+            onPressed: widget.onTap,
+            tooltip: context.tr('Meldingen', 'Notifications'),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+        ),
+        if (widget.unreadCount > 0)
+          Positioned(
+            right: -2,
+            top: -2,
+            child: IgnorePointer(
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  widget.unreadCount > 9 ? '9+' : widget.unreadCount.toString(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

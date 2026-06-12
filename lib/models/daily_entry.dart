@@ -2,8 +2,9 @@ class DailyEntry {
   final String photoUrl;
   final String description;
   final List<String> favoritedBy; // Voor persoonlijke favorieten (ster-icoon)
-  final List<String> likes;       // Voor openbare likes (hart-icoon)
-  final Map<String, dynamic> downloadRequests; // userId -> {status, name, timestamp}
+  final List<String> likes; // Voor openbare likes (hart-icoon)
+  final Map<String, dynamic>
+      downloadRequests; // userId -> {status, name, timestamp}
 
   DailyEntry({
     required this.photoUrl,
@@ -31,7 +32,8 @@ class DailyEntry {
       description: map['description'] as String? ?? '',
       favoritedBy: favoritedByList.cast<String>().toList(),
       likes: likesList.cast<String>().toList(),
-      downloadRequests: Map<String, dynamic>.from(map['downloadRequests'] ?? {}),
+      downloadRequests:
+          Map<String, dynamic>.from(map['downloadRequests'] ?? {}),
     );
   }
 

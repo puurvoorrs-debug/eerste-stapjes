@@ -13,16 +13,19 @@ class AuthService {
         return null;
       }
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      final UserCredential userCredential = await _auth.signInWithCredential(credential);
+      final UserCredential userCredential =
+          await _auth.signInWithCredential(credential);
       return userCredential.user;
     } catch (e, s) {
-      developer.log('Error during Google Sign-In', name: 'auth_service', error: e, stackTrace: s);
+      developer.log('Error during Google Sign-In',
+          name: 'auth_service', error: e, stackTrace: s);
       return null;
     }
   }

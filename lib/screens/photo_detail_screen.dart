@@ -11,6 +11,7 @@ import '../models/daily_entry.dart';
 import '../models/comment_model.dart';
 import '../providers/profile_provider.dart';
 import '../providers/locale_provider.dart';
+import '../widgets/sketchy_components.dart';
 
 // HOOFDWIDGET: BEHEERT DE PAGEVIEW
 class PhotoDetailScreen extends StatefulWidget {
@@ -39,10 +40,15 @@ class _PhotoDetailScreenState extends State<PhotoDetailScreen> {
     super.initState();
     // CORRECTIE: Sorteer de datums oplopend (oud naar nieuw)
     _sortedDates = widget.entries.keys.toList()..sort((a, b) => a.compareTo(b));
-    
+
     // Vind de index van de geselecteerde datum
-    _currentIndex = _sortedDates.indexWhere((d) => isSameDay(d, widget.initialDate));
-    if (_currentIndex == -1) _currentIndex = 0;
+    debugPrint("[PhotoDetailScreen] initialDate: ${widget.initialDate}, sortedDates: $_sortedDates");
+    _currentIndex =
+        _sortedDates.indexWhere((d) => isSameDay(d, widget.initialDate));
+    if (_currentIndex == -1) {
+      debugPrint("[PhotoDetailScreen] initialDate was not found in sortedDates! Defaulting to the most recent entry.");
+      _currentIndex = _sortedDates.isNotEmpty ? _sortedDates.length - 1 : 0;
+    }
 
     _pageController = PageController(initialPage: _currentIndex);
   }
@@ -64,7 +70,9 @@ class _PhotoDetailScreenState extends State<PhotoDetailScreen> {
 
         if (entry == null) {
           return Scaffold(
-            body: Center(child: Text(context.tr('Fout: Kon entry niet laden.', 'Error: Could not load entry.'))),
+            body: Center(
+                child: Text(context.tr('Fout: Kon entry niet laden.',
+                    'Error: Could not load entry.'))),
           );
         }
 
@@ -77,7 +85,7 @@ class _PhotoDetailScreenState extends State<PhotoDetailScreen> {
     );
   }
 
-   bool isSameDay(DateTime a, DateTime b) {
+  bool isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 }
@@ -97,7 +105,7 @@ class __PhotoPageState extends State<_PhotoPage> {
   final _commentController = TextEditingController();
   final _commentFocusNode = FocusNode();
   final User? _currentUser = FirebaseAuth.instance.currentUser;
-  
+
   String? _replyingToCommentId;
   String? _replyingToUserName;
 
@@ -132,7 +140,10 @@ class __PhotoPageState extends State<_PhotoPage> {
       if (!hasAccess) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(context.tr('Geen toegang tot de galerij. Geef de app toestemming in de instellingen.', 'No access to gallery. Please grant permission in settings.'))),
+            SnackBar(
+                content: Text(context.tr(
+                    'Geen toegang tot de galerij. Geef de app toestemming in de instellingen.',
+                    'No access to gallery. Please grant permission in settings.'))),
           );
         }
         return;
@@ -143,11 +154,15 @@ class __PhotoPageState extends State<_PhotoPage> {
       await Dio().download(url, savePath);
       await Gal.putImage(savePath);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.tr('Foto is opgeslagen in je galerij!', 'Photo saved to gallery!'))));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(context.tr('Foto is opgeslagen in je galerij!',
+                'Photo saved to gallery!'))));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${context.tr('Fout bij downloaden', 'Error downloading')}: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                '${context.tr('Fout bij downloaden', 'Error downloading')}: $e')));
       }
     } finally {
       if (mounted) {
@@ -159,87 +174,119 @@ class __PhotoPageState extends State<_PhotoPage> {
   Widget _buildOwnerDownloadRequests(DailyEntry entry) {
     if (entry.downloadRequests.isEmpty) return const SizedBox.shrink();
 
-    final pendingRequests = entry.downloadRequests.entries.where((e) => e.value['status'] == 'pending').toList();
+    final pendingRequests = entry.downloadRequests.entries
+        .where((e) => e.value['status'] == 'pending')
+        .toList();
     if (pendingRequests.isEmpty) return const SizedBox.shrink();
 
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(context.tr('Download Aanvragen', 'Download Requests'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          const SizedBox(height: 8),
-          ...pendingRequests.map((req) {
-            final userId = req.key;
-            final name = req.value['name'] ?? 'Iemand';
-            return ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(context.tr('$name wil deze foto downloaden', '$name wants to download this photo')),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.check_circle, color: Colors.green),
-                    onPressed: () => Provider.of<ProfileProvider>(context, listen: false).respondToDownloadRequest(widget.profile.id!, widget.date, userId, 'approved'),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.cancel, color: Colors.red),
-                    onPressed: () => Provider.of<ProfileProvider>(context, listen: false).respondToDownloadRequest(widget.profile.id!, widget.date, userId, 'rejected'),
-                  ),
-                ],
-              ),
-            );
-          }),
-        ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10.0),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.blue.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.blue.withOpacity(0.3),
+            width: 1.0,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(context.tr('Download Aanvragen', 'Download Requests'),
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 8),
+            ...pendingRequests.map((req) {
+              final userId = req.key;
+              final name = req.value['name'] ?? 'Iemand';
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(context.tr('$name wil deze foto downloaden',
+                    '$name wants to download this photo')),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.check_circle, color: Colors.green),
+                      onPressed: () =>
+                          Provider.of<ProfileProvider>(context, listen: false)
+                              .respondToDownloadRequest(widget.profile.id!,
+                                  widget.date, userId, 'approved'),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.cancel, color: Colors.red),
+                      onPressed: () =>
+                          Provider.of<ProfileProvider>(context, listen: false)
+                              .respondToDownloadRequest(widget.profile.id!,
+                                  widget.date, userId, 'rejected'),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildFollowerDownloadSection(DailyEntry entry) {
     if (_currentUser == null) return const SizedBox.shrink();
-    
-    final request = entry.downloadRequests[_currentUser!.uid];
+
+    final request = entry.downloadRequests[_currentUser.uid];
     final status = request != null ? request['status'] : null;
 
     if (status == null) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8.0),
-        child: ElevatedButton.icon(
-          icon: const Icon(Icons.file_download),
-          label: Text(context.tr('Download Aanvragen', 'Request Download')),
-          onPressed: () => Provider.of<ProfileProvider>(context, listen: false).requestPhotoDownload(widget.profile.id!, widget.date),
+        child: SketchyButton(
+          label: context.tr('Download Aanvragen', 'Request Download'),
+          fillColor: Theme.of(context).primaryColor,
+          textColor: Colors.white,
+          onPressed: () => Provider.of<ProfileProvider>(context, listen: false)
+              .requestPhotoDownload(widget.profile.id!, widget.date),
         ),
       );
     } else if (status == 'pending') {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8.0),
-        child: OutlinedButton.icon(
-          icon: const Icon(Icons.hourglass_empty),
-          label: Text(context.tr('Aanvraag in behandeling', 'Request pending')),
+        child: SketchyButton(
+          label: context.tr('Aanvraag in behandeling', 'Request pending'),
+          fillColor: Colors.white,
           onPressed: null,
         ),
       );
     } else if (status == 'rejected') {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8.0),
-        child: OutlinedButton.icon(
-          icon: const Icon(Icons.cancel, color: Colors.red),
-          label: Text(context.tr('Aanvraag afgewezen', 'Request rejected'), style: const TextStyle(color: Colors.red)),
+        child: SketchyButton(
+          label: context.tr('Aanvraag afgewezen', 'Request rejected'),
+          fillColor: Colors.white,
+          textColor: Colors.red,
+          borderColor: Colors.red,
           onPressed: null,
         ),
       );
     } else if (status == 'approved') {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8.0),
-        child: ElevatedButton.icon(
-          icon: _isDownloading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.file_download),
-          label: Text(_isDownloading ? context.tr('Downloaden...', 'Downloading...') : context.tr('Download Foto', 'Download Photo')),
-          onPressed: _isDownloading ? null : () => _downloadImage(entry.photoUrl),
+        child: SketchyButton(
+          label: _isDownloading
+              ? context.tr('Downloaden...', 'Downloading...')
+              : context.tr('Download Foto', 'Download Photo'),
+          fillColor: Theme.of(context).primaryColor,
+          textColor: Colors.white,
+          icon: _isDownloading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                      color: Colors.white, strokeWidth: 2))
+              : const Icon(Icons.file_download, color: Colors.white),
+          onPressed:
+              _isDownloading ? null : () => _downloadImage(entry.photoUrl),
         ),
       );
     }
@@ -250,8 +297,8 @@ class __PhotoPageState extends State<_PhotoPage> {
     if (_commentController.text.trim().isEmpty || _currentUser == null) return;
     final provider = Provider.of<ProfileProvider>(context, listen: false);
     provider.addComment(
-      widget.profile.id!, 
-      widget.date, 
+      widget.profile.id!,
+      widget.date,
       _commentController.text.trim(),
       parentId: _replyingToCommentId,
     );
@@ -284,25 +331,86 @@ class __PhotoPageState extends State<_PhotoPage> {
   void _deletePost() async {
     final bool? confirmed = await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.tr('Post Verwijderen?', 'Delete Post?')),
-        content: Text(context.tr('Weet je zeker dat je deze post wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.', 'Are you sure you want to delete this post? This action cannot be undone.')),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(context.tr('Annuleren', 'Cancel'))),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), child: Text(context.tr('Verwijderen', 'Delete'), style: const TextStyle(color: Colors.red))),
-        ],
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardTheme.color,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xFFEFEBE9).withOpacity(0.15)
+                  : Colors.grey[300]!,
+              width: 1.0,
+            ),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                context.tr('Post Verwijderen?', 'Delete Post?'),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                context.tr(
+                  'Weet je zeker dat je deze post wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.',
+                  'Are you sure you want to delete this post? This action cannot be undone.',
+                ),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  Expanded(
+                    child: SketchyButton(
+                      label: context.tr('Annuleren', 'Cancel'),
+                      fillColor: Colors.white,
+                      onPressed: () => Navigator.of(context).pop(false),
+                      height: 48,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SketchyButton(
+                      label: context.tr('Verwijderen', 'Delete'),
+                      fillColor: Colors.red,
+                      textColor: Colors.white,
+                      borderColor: Colors.red,
+                      onPressed: () => Navigator.of(context).pop(true),
+                      height: 48,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
 
     if (confirmed == true && mounted) {
       try {
-        await Provider.of<ProfileProvider>(context, listen: false).deleteDailyEntry(widget.profile.id!, widget.date);
+        await Provider.of<ProfileProvider>(context, listen: false)
+            .deleteDailyEntry(widget.profile.id!, widget.date);
         if (mounted) {
           Navigator.of(context).pop();
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${context.tr('Fout bij verwijderen', 'Error deleting')}: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(
+                  '${context.tr('Fout bij verwijderen', 'Error deleting')}: $e')));
         }
       }
     }
@@ -315,7 +423,16 @@ class __PhotoPageState extends State<_PhotoPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('${context.tr('Moment van', 'Moment of')} ${DateFormat('d MMMM yyyy', context.tr('nl_NL', 'en_US')).format(widget.date)}'),
+        title: Text(
+            '${context.tr('Moment van', 'Moment of')} ${DateFormat('d MMMM yyyy', context.tr('nl_NL', 'en_US')).format(widget.date)}'),
+        leading: Navigator.canPop(context)
+            ? Padding(
+                padding: const EdgeInsets.all(6.0),
+                child: SketchyBackButton(
+                  onPressed: () => Navigator.maybePop(context),
+                ),
+              )
+            : null,
         actions: [
           if (isOwner)
             IconButton(
@@ -332,9 +449,13 @@ class __PhotoPageState extends State<_PhotoPage> {
             return const Center(child: CircularProgressIndicator());
           }
           if (!snapshot.hasData || !snapshot.data!.exists) {
-            return Center(child: Text(context.tr('Deze post bestaat niet meer of wordt geladen.', 'This post no longer exists or is being loaded.')));
+            return Center(
+                child: Text(context.tr(
+                    'Deze post bestaat niet meer of wordt geladen.',
+                    'This post no longer exists or is being loaded.')));
           }
-          final entry = DailyEntry.fromMap(snapshot.data!.data() as Map<String, dynamic>);
+          final entry =
+              DailyEntry.fromMap(snapshot.data!.data() as Map<String, dynamic>);
 
           return Column(
             children: [
@@ -343,9 +464,27 @@ class __PhotoPageState extends State<_PhotoPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Hero(
-                        tag: 'photo_$dateString',
-                        child: Image.network(entry.photoUrl, width: double.infinity, fit: BoxFit.cover),
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Hero(
+                          tag: 'photo_$dateString',
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? const Color(0xFFEFEBE9).withOpacity(0.15)
+                                    : Colors.grey[200]!,
+                                width: 1.0,
+                              ),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(24),
+                              child: Image.network(entry.photoUrl,
+                                  width: double.infinity, fit: BoxFit.cover),
+                            ),
+                          ),
+                        ),
                       ),
                       Padding(
                         padding: const EdgeInsets.all(16.0),
@@ -357,33 +496,75 @@ class __PhotoPageState extends State<_PhotoPage> {
                                 if (_currentUser != null)
                                   IconButton(
                                     icon: Icon(
-                                      entry.isFavoritedBy(_currentUser.uid) ? Icons.star : Icons.star_border,
-                                      color: entry.isFavoritedBy(_currentUser.uid) ? Colors.amber : null,
+                                      entry.isFavoritedBy(_currentUser.uid)
+                                          ? Icons.star
+                                          : Icons.star_border,
+                                      color:
+                                          entry.isFavoritedBy(_currentUser.uid)
+                                              ? Colors.amber
+                                              : null,
                                     ),
-                                    onPressed: () => Provider.of<ProfileProvider>(context, listen: false).toggleFavorite(widget.profile.id!, widget.date),
+                                    onPressed: () =>
+                                        Provider.of<ProfileProvider>(context,
+                                                listen: false)
+                                            .toggleFavorite(widget.profile.id!,
+                                                widget.date),
                                   ),
                                 if (_currentUser != null)
                                   IconButton(
                                     icon: Icon(
-                                      entry.isLikedBy(_currentUser.uid) ? Icons.favorite : Icons.favorite_border,
-                                      color: entry.isLikedBy(_currentUser.uid) ? Colors.red : null,
+                                      entry.isLikedBy(_currentUser.uid)
+                                          ? Icons.favorite
+                                          : Icons.favorite_border,
+                                      color: entry.isLikedBy(_currentUser.uid)
+                                          ? Colors.red
+                                          : null,
                                     ),
-                                    onPressed: () => Provider.of<ProfileProvider>(context, listen: false).toggleLike(widget.profile.id!, widget.date),
+                                    onPressed: () =>
+                                        Provider.of<ProfileProvider>(context,
+                                                listen: false)
+                                            .toggleLike(widget.profile.id!,
+                                                widget.date),
                                   ),
                                 const SizedBox(width: 8),
-                                Text('${entry.likes.length} ${entry.likes.length == 1 ? 'like' : 'likes'}'),
+                                Text(
+                                    '${entry.likes.length} ${entry.likes.length == 1 ? 'like' : 'likes'}'),
                               ],
                             ),
                             const SizedBox(height: 12),
                             if (entry.description.isNotEmpty)
-                              Text(entry.description, style: Theme.of(context).textTheme.bodyLarge),
-                            
-                            const SizedBox(height: 12),
-                            if (isOwner) _buildOwnerDownloadRequests(entry),
-                            if (!isOwner) _buildFollowerDownloadSection(entry),
-
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 12.0),
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(16.0),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).cardTheme.color,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: Theme.of(context).brightness == Brightness.dark
+                                            ? const Color(0xFFEFEBE9).withOpacity(0.15)
+                                            : Colors.grey[200]!,
+                                        width: 1.0,
+                                      ),
+                                    ),
+                                  child: Text(entry.description,
+                                      style: Theme.of(context).textTheme.bodyLarge),
+                                ),
+                              ),
+                            if (isOwner)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 12.0),
+                                child: _buildOwnerDownloadRequests(entry),
+                              ),
+                            if (!isOwner)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 12.0),
+                                child: _buildFollowerDownloadSection(entry),
+                              ),
                             const Divider(height: 30),
-                            Text(context.tr('Reacties', 'Comments'), style: Theme.of(context).textTheme.titleLarge),
+                            Text(context.tr('Reacties', 'Comments'),
+                                style: Theme.of(context).textTheme.titleLarge),
                             const SizedBox(height: 10),
                             _buildCommentsList(),
                             const SizedBox(height: 10),
@@ -410,7 +591,7 @@ class __PhotoPageState extends State<_PhotoPage> {
       ),
     );
   }
-  
+
   void _showCommentOptions(CommentModel comment) {
     showModalBottomSheet(
       context: context,
@@ -444,27 +625,75 @@ class __PhotoPageState extends State<_PhotoPage> {
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text(context.tr('Reactie bewerken', 'Edit comment')),
-          content: TextField(
-            controller: editController,
-            autofocus: true,
-            maxLines: null,
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: Text(context.tr('Annuleren', 'Cancel'))),
-            TextButton(
-              onPressed: () {
-                final newText = editController.text.trim();
-                if (newText.isNotEmpty) {
-                  Provider.of<ProfileProvider>(context, listen: false)
-                      .updateComment(widget.profile.id!, widget.date, comment.id, newText);
-                  Navigator.pop(context);
-                }
-              },
-              child: Text(context.tr('Opslaan', 'Save')),
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardTheme.color,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFFEFEBE9).withOpacity(0.15)
+                    : Colors.grey[300]!,
+                width: 1.0,
+              ),
             ),
-          ],
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  context.tr('Reactie bewerken', 'Edit comment'),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                SketchyTextField(
+                  controller: editController,
+                  labelText: context.tr('Reactie', 'Comment'),
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    Expanded(
+                      child: SketchyButton(
+                        label: context.tr('Annuleren', 'Cancel'),
+                        fillColor: Colors.white,
+                        onPressed: () => Navigator.pop(context),
+                        height: 48,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: SketchyButton(
+                        label: context.tr('Opslaan', 'Save'),
+                        fillColor: Theme.of(context).primaryColor,
+                        textColor: Colors.white,
+                        onPressed: () {
+                          final newText = editController.text.trim();
+                          if (newText.isNotEmpty) {
+                            Provider.of<ProfileProvider>(context, listen: false)
+                                .updateComment(
+                                    widget.profile.id!, widget.date, comment.id, newText);
+                            Navigator.pop(context);
+                          }
+                        },
+                        height: 48,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -474,42 +703,107 @@ class __PhotoPageState extends State<_PhotoPage> {
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text(context.tr('Reactie Verwijderen?', 'Delete Comment?')),
-          content: Text(context.tr('Weet je zeker dat je deze reactie wilt verwijderen?', 'Are you sure you want to delete this comment?')),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: Text(context.tr('Annuleren', 'Cancel'))),
-            TextButton(
-              onPressed: () {
-                Provider.of<ProfileProvider>(context, listen: false)
-                    .deleteComment(widget.profile.id!, widget.date, comment.id);
-                Navigator.pop(context);
-              },
-              child: Text(context.tr('Verwijderen', 'Delete'), style: const TextStyle(color: Colors.red)),
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardTheme.color,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFFEFEBE9).withOpacity(0.15)
+                    : Colors.grey[300]!,
+                width: 1.0,
+              ),
             ),
-          ],
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  context.tr('Reactie Verwijderen?', 'Delete Comment?'),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  context.tr(
+                      'Weet je zeker dat je deze reactie wilt verwijderen?',
+                      'Are you sure you want to delete this comment?'),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    Expanded(
+                      child: SketchyButton(
+                        label: context.tr('Annuleren', 'Cancel'),
+                        fillColor: Colors.white,
+                        onPressed: () => Navigator.pop(context),
+                        height: 48,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: SketchyButton(
+                        label: context.tr('Verwijderen', 'Delete'),
+                        fillColor: Colors.red,
+                        textColor: Colors.white,
+                        borderColor: Colors.red,
+                        onPressed: () {
+                          Provider.of<ProfileProvider>(context, listen: false)
+                              .deleteComment(widget.profile.id!, widget.date, comment.id);
+                          Navigator.pop(context);
+                        },
+                        height: 48,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
-  }  Widget _buildCommentsList() {
+  }
+
+  Widget _buildCommentsList() {
     return StreamBuilder<QuerySnapshot>(
-      stream: _entryRef.collection('comments').orderBy('timestamp', descending: true).snapshots(),
+      stream: _entryRef
+          .collection('comments')
+          .orderBy('timestamp', descending: true)
+          .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
-        final allComments = snapshot.data!.docs.map((doc) => CommentModel.fromDocument(doc)).toList();
+        final allComments = snapshot.data!.docs
+            .map((doc) => CommentModel.fromDocument(doc))
+            .toList();
 
         if (allComments.isEmpty) {
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 20.0),
-            child: Center(child: Text(context.tr('Wees de eerste die reageert!', 'Be the first to comment!'))),
+            child: Center(
+                child: Text(context.tr('Wees de eerste die reageert!',
+                    'Be the first to comment!'))),
           );
         }
 
         // Group comments by parentId
-        final rootComments = allComments.where((c) => c.parentId == null).toList();
-        final childComments = allComments.where((c) => c.parentId != null).toList();
+        final rootComments =
+            allComments.where((c) => c.parentId == null).toList();
+        final childComments =
+            allComments.where((c) => c.parentId != null).toList();
 
         return ListView.builder(
           shrinkWrap: true,
@@ -517,8 +811,10 @@ class __PhotoPageState extends State<_PhotoPage> {
           itemCount: rootComments.length,
           itemBuilder: (context, index) {
             final rootComment = rootComments[index];
-            final replies = childComments.where((c) => c.parentId == rootComment.id).toList();
-            
+            final replies = childComments
+                .where((c) => c.parentId == rootComment.id)
+                .toList();
+
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -527,7 +823,10 @@ class __PhotoPageState extends State<_PhotoPage> {
                   Padding(
                     padding: const EdgeInsets.only(left: 40.0),
                     child: Column(
-                      children: replies.map((reply) => _buildCommentTile(reply, isReply: true)).toList(),
+                      children: replies
+                          .map((reply) =>
+                              _buildCommentTile(reply, isReply: true))
+                          .toList(),
                     ),
                   ),
               ],
@@ -540,7 +839,8 @@ class __PhotoPageState extends State<_PhotoPage> {
 
   Widget _buildCommentTile(CommentModel comment, {required bool isReply}) {
     final bool isCommentOwner = _currentUser?.uid == comment.userId;
-    final bool isLiked = _currentUser != null && comment.likes.contains(_currentUser!.uid);
+    final bool isLiked =
+        _currentUser != null && comment.likes.contains(_currentUser.uid);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -550,8 +850,13 @@ class __PhotoPageState extends State<_PhotoPage> {
           CircleAvatar(
             radius: isReply ? 14 : 18,
             backgroundColor: Theme.of(context).primaryColor,
-            backgroundImage: comment.userPhotoUrl.isNotEmpty ? NetworkImage(comment.userPhotoUrl) : null,
-            child: comment.userPhotoUrl.isEmpty ? Icon(Icons.person, size: isReply ? 16 : 20, color: Colors.white) : null,
+            backgroundImage: comment.userPhotoUrl.isNotEmpty
+                ? NetworkImage(comment.userPhotoUrl)
+                : null,
+            child: comment.userPhotoUrl.isEmpty
+                ? Icon(Icons.person,
+                    size: isReply ? 16 : 20, color: Colors.white)
+                : null,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -578,13 +883,23 @@ class __PhotoPageState extends State<_PhotoPage> {
                   children: [
                     GestureDetector(
                       onTap: () => _startReply(comment),
-                      child: Text(context.tr('Reageer', 'Reply'), style: TextStyle(fontSize: 12, color: Theme.of(context).primaryColor, fontWeight: FontWeight.bold)),
+                      child: Text(context.tr('Reageer', 'Reply'),
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context).primaryColor,
+                              fontWeight: FontWeight.bold)),
                     ),
                     if (isCommentOwner) ...[
                       const SizedBox(width: 16),
                       GestureDetector(
                         onTap: () => _showCommentOptions(comment),
-                        child: Text(context.tr('Opties', 'Options'), style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5))),
+                        child: Text(context.tr('Opties', 'Options'),
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withOpacity(0.5))),
                       ),
                     ],
                   ],
@@ -599,19 +914,31 @@ class __PhotoPageState extends State<_PhotoPage> {
                 icon: Icon(
                   isLiked ? Icons.favorite : Icons.favorite_border,
                   size: 16,
-                  color: isLiked ? Colors.red : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                  color: isLiked
+                      ? Colors.red
+                      : Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withOpacity(0.5),
                 ),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
                 onPressed: () {
                   if (_currentUser != null) {
                     Provider.of<ProfileProvider>(context, listen: false)
-                        .toggleCommentLike(widget.profile.id!, widget.date, comment.id);
+                        .toggleCommentLike(
+                            widget.profile.id!, widget.date, comment.id);
                   }
                 },
               ),
               if (comment.likes.isNotEmpty)
-                Text('${comment.likes.length}', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7))),
+                Text('${comment.likes.length}',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(0.7))),
             ],
           ),
         ],
@@ -634,11 +961,15 @@ class __PhotoPageState extends State<_PhotoPage> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('${context.tr('Antwoorden op', 'Replying to')} $_replyingToUserName', style: TextStyle(color: Theme.of(context).primaryColor, fontSize: 12)),
+                Text(
+                    '${context.tr('Antwoorden op', 'Replying to')} $_replyingToUserName',
+                    style: TextStyle(
+                        color: Theme.of(context).primaryColor, fontSize: 12)),
                 const SizedBox(width: 8),
                 GestureDetector(
                   onTap: _cancelReply,
-                  child: Icon(Icons.close, size: 16, color: Theme.of(context).primaryColor),
+                  child: Icon(Icons.close,
+                      size: 16, color: Theme.of(context).primaryColor),
                 ),
               ],
             ),
@@ -646,28 +977,25 @@ class __PhotoPageState extends State<_PhotoPage> {
         Row(
           children: [
             Expanded(
-              child: TextField(
+              child: SketchyTextField(
                 controller: _commentController,
-                focusNode: _commentFocusNode,
-                decoration: InputDecoration(
-                  hintText: context.tr('Schrijf een reactie...', 'Write a comment...'),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-                textCapitalization: TextCapitalization.sentences,
+                hintText: context.tr(
+                    'Schrijf een reactie...', 'Write a comment...'),
               ),
             ),
             const SizedBox(width: 8),
-            Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor,
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.send, color: Colors.white, size: 20),
-                onPressed: _postComment,
+            GestureDetector(
+              onTap: _postComment,
+              child: Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor,
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Icon(Icons.send, color: Colors.white, size: 20),
+                ),
               ),
             ),
           ],

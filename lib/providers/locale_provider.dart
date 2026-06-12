@@ -41,8 +41,8 @@ class LocaleProvider with ChangeNotifier {
         FirebaseFirestore.instance
             .collection('users')
             .doc(currentUser.uid)
-            .update({'language': locale.languageCode})
-            .catchError((e) => debugPrint('Error updating user language in Firestore: $e'));
+            .update({'language': locale.languageCode}).catchError((e) =>
+                debugPrint('Error updating user language in Firestore: $e'));
       }
     }
   }

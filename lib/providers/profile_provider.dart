@@ -47,7 +47,9 @@ class ProfileProvider with ChangeNotifier {
         ))
         .snapshots()
         .listen((snapshot) {
-      _profiles = snapshot.docs.map((doc) => Profile.fromMap(doc.data(), doc.id)).toList();
+      _profiles = snapshot.docs
+          .map((doc) => Profile.fromMap(doc.data(), doc.id))
+          .toList();
       notifyListeners();
     }, onError: (error) {
       debugPrint("Error fetching profiles: $error");
@@ -62,7 +64,8 @@ class ProfileProvider with ChangeNotifier {
         length, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
   }
 
-  Future<String> _uploadImage(File image, String path, {String? ownerId}) async {
+  Future<String> _uploadImage(File image, String path,
+      {String? ownerId}) async {
     final ref = _storage.ref().child(path);
     final metadata = SettableMetadata(customMetadata: {
       if (ownerId != null) 'ownerId': ownerId,
@@ -114,26 +117,32 @@ class ProfileProvider with ChangeNotifier {
         ownerId: user.uid,
       );
     }
-    
+
     final updatedProfile = newProfileData.copyWith(profileImageUrl: imageUrl);
-    await _firestore.collection('profiles').doc(profileId).update(updatedProfile.toMap());
+    await _firestore
+        .collection('profiles')
+        .doc(profileId)
+        .update(updatedProfile.toMap());
   }
 
   Future<void> deleteProfile(String profileId) async {
     final profileRef = _firestore.collection('profiles').doc(profileId);
 
-    final dailyEntriesSnapshot = await profileRef.collection('daily_entries').get();
+    final dailyEntriesSnapshot =
+        await profileRef.collection('daily_entries').get();
     for (final doc in dailyEntriesSnapshot.docs) {
-        await deleteDailyEntry(profileId, DateTime.parse(doc.id));
+      await deleteDailyEntry(profileId, DateTime.parse(doc.id));
     }
 
     final profileDoc = await profileRef.get();
     if (profileDoc.exists && profileDoc.data()!['profileImageUrl'] != null) {
-        try {
-            await _storage.refFromURL(profileDoc.data()!['profileImageUrl']).delete();
-        } catch (e) {
-            debugPrint("Failed to delete profile image from storage: $e");
-        }
+      try {
+        await _storage
+            .refFromURL(profileDoc.data()!['profileImageUrl'])
+            .delete();
+      } catch (e) {
+        debugPrint("Failed to delete profile image from storage: $e");
+      }
     }
 
     await profileRef.delete();
@@ -141,7 +150,11 @@ class ProfileProvider with ChangeNotifier {
 
   Future<void> deleteDailyEntry(String profileId, DateTime date) async {
     final dateString = date.toIso8601String().split('T').first;
-    final entryRef = _firestore.collection('profiles').doc(profileId).collection('daily_entries').doc(dateString);
+    final entryRef = _firestore
+        .collection('profiles')
+        .doc(profileId)
+        .collection('daily_entries')
+        .doc(dateString);
 
     final entryDoc = await entryRef.get();
     if (!entryDoc.exists) return;
@@ -163,19 +176,25 @@ class ProfileProvider with ChangeNotifier {
     await entryRef.delete();
   }
 
-  Future<void> addPhotoToProfile(String profileId, DateTime date, File imageFile, {String description = ''}) async {
+  Future<void> addPhotoToProfile(
+      String profileId, DateTime date, File imageFile,
+      {String description = ''}) async {
     final user = _auth.currentUser;
     if (user == null) return;
 
     final dateString = date.toIso8601String().split('T').first;
-    final entryRef = _firestore.collection('profiles').doc(profileId).collection('daily_entries').doc(dateString);
+    final entryRef = _firestore
+        .collection('profiles')
+        .doc(profileId)
+        .collection('daily_entries')
+        .doc(dateString);
 
     if ((await entryRef.get()).exists) {
       await deleteDailyEntry(profileId, date);
     }
 
     final imageUrl = await _uploadImage(
-      imageFile, 
+      imageFile,
       'daily_pictures/$profileId/$dateString.jpg',
       ownerId: user.uid,
     );
@@ -195,18 +214,27 @@ class ProfileProvider with ChangeNotifier {
     if (user == null) return;
 
     final dateString = date.toIso8601String().split('T').first;
-    final docRef = _firestore.collection('profiles').doc(profileId).collection('daily_entries').doc(dateString);
+    final docRef = _firestore
+        .collection('profiles')
+        .doc(profileId)
+        .collection('daily_entries')
+        .doc(dateString);
 
     return _firestore.runTransaction((transaction) async {
       final snapshot = await transaction.get(docRef);
       if (!snapshot.exists) return;
       final data = snapshot.data()!;
-      final List<String> favoritedBy = List<String>.from(data['favoritedBy'] ?? []);
+      final List<String> favoritedBy =
+          List<String>.from(data['favoritedBy'] ?? []);
 
       if (favoritedBy.contains(user.uid)) {
-        transaction.update(docRef, {'favoritedBy': FieldValue.arrayRemove([user.uid])});
+        transaction.update(docRef, {
+          'favoritedBy': FieldValue.arrayRemove([user.uid])
+        });
       } else {
-        transaction.update(docRef, {'favoritedBy': FieldValue.arrayUnion([user.uid])});
+        transaction.update(docRef, {
+          'favoritedBy': FieldValue.arrayUnion([user.uid])
+        });
       }
     });
   }
@@ -216,7 +244,11 @@ class ProfileProvider with ChangeNotifier {
     if (user == null) return;
 
     final dateString = date.toIso8601String().split('T').first;
-    final docRef = _firestore.collection('profiles').doc(profileId).collection('daily_entries').doc(dateString);
+    final docRef = _firestore
+        .collection('profiles')
+        .doc(profileId)
+        .collection('daily_entries')
+        .doc(dateString);
 
     return _firestore.runTransaction((transaction) async {
       final snapshot = await transaction.get(docRef);
@@ -225,14 +257,19 @@ class ProfileProvider with ChangeNotifier {
       final List<String> likes = List<String>.from(data['likes'] ?? []);
 
       if (likes.contains(user.uid)) {
-        transaction.update(docRef, {'likes': FieldValue.arrayRemove([user.uid])});
+        transaction.update(docRef, {
+          'likes': FieldValue.arrayRemove([user.uid])
+        });
       } else {
-        transaction.update(docRef, {'likes': FieldValue.arrayUnion([user.uid])});
+        transaction.update(docRef, {
+          'likes': FieldValue.arrayUnion([user.uid])
+        });
       }
     });
   }
 
-  Future<void> addComment(String profileId, DateTime date, String commentText, {String? parentId}) async {
+  Future<void> addComment(String profileId, DateTime date, String commentText,
+      {String? parentId}) async {
     final user = _auth.currentUser;
     if (user == null) return;
 
@@ -241,7 +278,13 @@ class ProfileProvider with ChangeNotifier {
     final userProfile = UserModel.fromDocument(userDoc);
 
     final dateString = date.toIso8601String().split('T').first;
-    final commentRef = _firestore.collection('profiles').doc(profileId).collection('daily_entries').doc(dateString).collection('comments').doc();
+    final commentRef = _firestore
+        .collection('profiles')
+        .doc(profileId)
+        .collection('daily_entries')
+        .doc(dateString)
+        .collection('comments')
+        .doc();
 
     final newComment = CommentModel(
       id: commentRef.id,
@@ -256,12 +299,19 @@ class ProfileProvider with ChangeNotifier {
     await commentRef.set(newComment.toMap());
   }
 
-  Future<void> toggleCommentLike(String profileId, DateTime date, String commentId) async {
+  Future<void> toggleCommentLike(
+      String profileId, DateTime date, String commentId) async {
     final user = _auth.currentUser;
     if (user == null) return;
 
     final dateString = date.toIso8601String().split('T').first;
-    final docRef = _firestore.collection('profiles').doc(profileId).collection('daily_entries').doc(dateString).collection('comments').doc(commentId);
+    final docRef = _firestore
+        .collection('profiles')
+        .doc(profileId)
+        .collection('daily_entries')
+        .doc(dateString)
+        .collection('comments')
+        .doc(commentId);
 
     return _firestore.runTransaction((transaction) async {
       final snapshot = await transaction.get(docRef);
@@ -270,21 +320,41 @@ class ProfileProvider with ChangeNotifier {
       final List<String> likes = List<String>.from(data['likes'] ?? []);
 
       if (likes.contains(user.uid)) {
-        transaction.update(docRef, {'likes': FieldValue.arrayRemove([user.uid])});
+        transaction.update(docRef, {
+          'likes': FieldValue.arrayRemove([user.uid])
+        });
       } else {
-        transaction.update(docRef, {'likes': FieldValue.arrayUnion([user.uid])});
+        transaction.update(docRef, {
+          'likes': FieldValue.arrayUnion([user.uid])
+        });
       }
     });
   }
 
-  Future<void> deleteComment(String profileId, DateTime date, String commentId) async {
+  Future<void> deleteComment(
+      String profileId, DateTime date, String commentId) async {
     final dateString = date.toIso8601String().split('T').first;
-    await _firestore.collection('profiles').doc(profileId).collection('daily_entries').doc(dateString).collection('comments').doc(commentId).delete();
+    await _firestore
+        .collection('profiles')
+        .doc(profileId)
+        .collection('daily_entries')
+        .doc(dateString)
+        .collection('comments')
+        .doc(commentId)
+        .delete();
   }
 
-  Future<void> updateComment(String profileId, DateTime date, String commentId, String newText) async {
+  Future<void> updateComment(
+      String profileId, DateTime date, String commentId, String newText) async {
     final dateString = date.toIso8601String().split('T').first;
-    await _firestore.collection('profiles').doc(profileId).collection('daily_entries').doc(dateString).collection('comments').doc(commentId).update({
+    await _firestore
+        .collection('profiles')
+        .doc(profileId)
+        .collection('daily_entries')
+        .doc(dateString)
+        .collection('comments')
+        .doc(commentId)
+        .update({
       'commentText': newText,
       'timestamp': FieldValue.serverTimestamp(),
     });
@@ -303,7 +373,10 @@ class ProfileProvider with ChangeNotifier {
     final userName = userData['displayName'] as String?;
     final photoUrl = userData['photoUrl'] as String?;
 
-    if (userName == null || userName.isEmpty || photoUrl == null || photoUrl.isEmpty) {
+    if (userName == null ||
+        userName.isEmpty ||
+        photoUrl == null ||
+        photoUrl.isEmpty) {
       throw IncompleteProfileException(
           'Update je profiel met een naam en foto om anderen te volgen.');
     }
@@ -333,7 +406,8 @@ class ProfileProvider with ChangeNotifier {
     }
 
     // Al een openstaand verzoek? Niet opnieuw aanvragen.
-    final existingRequests = Map<String, dynamic>.from(profileData['followRequests'] ?? {});
+    final existingRequests =
+        Map<String, dynamic>.from(profileData['followRequests'] ?? {});
     if (existingRequests.containsKey(user.uid) &&
         existingRequests[user.uid]['status'] == 'pending') {
       return 'already_requested';
@@ -396,10 +470,16 @@ class ProfileProvider with ChangeNotifier {
     if (user == null) return;
 
     final userDoc = await _firestore.collection('users').doc(user.uid).get();
-    final name = userDoc.exists ? (userDoc.data()?['displayName'] ?? 'Iemand') : 'Iemand';
+    final name = userDoc.exists
+        ? (userDoc.data()?['displayName'] ?? 'Iemand')
+        : 'Iemand';
 
     final dateString = date.toIso8601String().split('T').first;
-    final docRef = _firestore.collection('profiles').doc(profileId).collection('daily_entries').doc(dateString);
+    final docRef = _firestore
+        .collection('profiles')
+        .doc(profileId)
+        .collection('daily_entries')
+        .doc(dateString);
 
     await docRef.set({
       'downloadRequests': {
@@ -412,9 +492,14 @@ class ProfileProvider with ChangeNotifier {
     }, SetOptions(merge: true));
   }
 
-  Future<void> respondToDownloadRequest(String profileId, DateTime date, String userId, String status) async {
+  Future<void> respondToDownloadRequest(
+      String profileId, DateTime date, String userId, String status) async {
     final dateString = date.toIso8601String().split('T').first;
-    final docRef = _firestore.collection('profiles').doc(profileId).collection('daily_entries').doc(dateString);
+    final docRef = _firestore
+        .collection('profiles')
+        .doc(profileId)
+        .collection('daily_entries')
+        .doc(dateString);
 
     await docRef.set({
       'downloadRequests': {
@@ -423,6 +508,22 @@ class ProfileProvider with ChangeNotifier {
           'timestamp': FieldValue.serverTimestamp(),
         }
       }
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> sendNudge(String profileId, DateTime date) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    final dateString = date.toIso8601String().split('T').first;
+
+    await _firestore
+        .collection('profiles')
+        .doc(profileId)
+        .collection('nudges')
+        .doc(dateString)
+        .set({
+      'nudgeSenders': FieldValue.arrayUnion([user.uid]),
+      'timestamp': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
 

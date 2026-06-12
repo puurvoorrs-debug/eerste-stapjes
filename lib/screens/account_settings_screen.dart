@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../models/user_model.dart';
 import '../providers/locale_provider.dart';
+import '../providers/theme_provider.dart';
 
 class AccountSettingsScreen extends StatefulWidget {
   const AccountSettingsScreen({super.key});
@@ -33,7 +34,10 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   Future<void> _loadUserData() async {
     if (_currentUser == null) return;
 
-    final userDoc = await FirebaseFirestore.instance.collection('users').doc(_currentUser.uid).get();
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(_currentUser.uid)
+        .get();
     if (userDoc.exists) {
       setState(() {
         _currentUserModel = UserModel.fromDocument(userDoc);
@@ -43,7 +47,8 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   }
 
   Future<void> _pickImage() async {
-    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
+    final pickedFile = await ImagePicker()
+        .pickImage(source: ImageSource.gallery, imageQuality: 80);
     if (pickedFile != null) {
       setState(() {
         _imageFile = File(pickedFile.path);
@@ -75,21 +80,28 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
         photoUrl = await storageRef.getDownloadURL();
       }
 
-      await FirebaseFirestore.instance.collection('users').doc(_currentUser.uid).update({
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_currentUser.uid)
+          .update({
         'displayName': _nameController.text,
         'photoUrl': photoUrl,
       });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.tr('Profiel bijgewerkt!', 'Profile updated!'))),
+          SnackBar(
+              content:
+                  Text(context.tr('Profiel bijgewerkt!', 'Profile updated!'))),
         );
         Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${context.tr('Fout bij het bijwerken van profiel', 'Error updating profile')}: $e')),
+          SnackBar(
+              content: Text(
+                  '${context.tr('Fout bij het bijwerken van profiel', 'Error updating profile')}: $e')),
         );
       }
     } finally {
@@ -112,7 +124,8 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
       body: _currentUserModel == null
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -128,21 +141,27 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                             decoration: BoxDecoration(
                               color: theme.cardTheme.color,
                               shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
+                              border: Border.all(
+                                color: theme.brightness == Brightness.dark
+                                    ? const Color(0xFFEFEBE9).withOpacity(0.15)
+                                    : Colors.grey[200]!,
+                                width: 1.5,
+                              ),
                               image: _imageFile != null
-                                  ? DecorationImage(image: FileImage(_imageFile!), fit: BoxFit.cover)
+                                  ? DecorationImage(
+                                      image: FileImage(_imageFile!),
+                                      fit: BoxFit.cover)
                                   : (_currentUserModel!.photoUrl.isNotEmpty
-                                      ? DecorationImage(image: NetworkImage(_currentUserModel!.photoUrl), fit: BoxFit.cover)
+                                      ? DecorationImage(
+                                          image: NetworkImage(
+                                              _currentUserModel!.photoUrl),
+                                          fit: BoxFit.cover)
                                       : null),
                             ),
-                            child: _imageFile == null && _currentUserModel!.photoUrl.isEmpty
-                                ? Icon(Icons.person, size: 60, color: Colors.grey[400])
+                            child: _imageFile == null &&
+                                    _currentUserModel!.photoUrl.isEmpty
+                                ? Icon(Icons.person,
+                                    size: 60, color: Colors.grey[400])
                                 : null,
                           ),
                           Container(
@@ -150,9 +169,12 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                             decoration: BoxDecoration(
                               color: theme.primaryColor,
                               shape: BoxShape.circle,
-                              border: Border.all(color: theme.scaffoldBackgroundColor, width: 3),
+                              border: Border.all(
+                                  color: theme.scaffoldBackgroundColor,
+                                  width: 3),
                             ),
-                            child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                            child: const Icon(Icons.camera_alt,
+                                color: Colors.white, size: 20),
                           ),
                         ],
                       ),
@@ -160,7 +182,8 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                     const SizedBox(height: 40),
                     Align(
                       alignment: Alignment.centerLeft,
-                      child: Text(context.tr('Accountnaam', 'Account name'), style: theme.textTheme.titleMedium),
+                      child: Text(context.tr('Accountnaam', 'Account name'),
+                          style: theme.textTheme.titleMedium),
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
@@ -170,7 +193,8 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return context.tr('Voer een accountnaam in', 'Please enter an account name');
+                          return context.tr('Voer een accountnaam in',
+                              'Please enter an account name');
                         }
                         return null;
                       },
@@ -178,15 +202,17 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                     const SizedBox(height: 24),
                     Align(
                       alignment: Alignment.centerLeft,
-                      child: Text(context.tr('Taal', 'Language'), style: theme.textTheme.titleMedium),
+                      child: Text(context.tr('Taal', 'Language'),
+                          style: theme.textTheme.titleMedium),
                     ),
                     const SizedBox(height: 8),
                     Consumer<LocaleProvider>(
                       builder: (context, localeProvider, child) {
                         return DropdownButtonFormField<String>(
-                          value: localeProvider.locale.languageCode,
+                          initialValue: localeProvider.locale.languageCode,
                           decoration: const InputDecoration(
-                            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
                           ),
                           items: [
                             DropdownMenuItem(
@@ -206,6 +232,31 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                         );
                       },
                     ),
+                    const SizedBox(height: 24),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(context.tr('Thema', 'Theme'),
+                          style: theme.textTheme.titleMedium),
+                    ),
+                    const SizedBox(height: 8),
+                    Consumer<ThemeProvider>(
+                      builder: (context, themeProvider, child) {
+                        return SwitchListTile.adaptive(
+                          title: Text(context.tr('Donkere modus', 'Dark mode')),
+                          value: themeProvider.isDarkMode,
+                          onChanged: (val) {
+                            themeProvider.toggleTheme(val);
+                          },
+                          secondary: Icon(
+                            themeProvider.isDarkMode
+                                ? Icons.dark_mode
+                                : Icons.light_mode,
+                            color: theme.primaryColor,
+                          ),
+                          contentPadding: EdgeInsets.zero,
+                        );
+                      },
+                    ),
                     const SizedBox(height: 40),
                     if (_isLoading)
                       const CircularProgressIndicator()
@@ -215,7 +266,9 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                         style: ElevatedButton.styleFrom(
                           minimumSize: const Size(double.infinity, 56),
                         ),
-                        child: Text(context.tr('Opslaan', 'Save'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        child: Text(context.tr('Opslaan', 'Save'),
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
                   ],
                 ),

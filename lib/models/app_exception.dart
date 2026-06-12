@@ -1,4 +1,3 @@
-
 class IncompleteProfileException implements Exception {
   final String message;
 

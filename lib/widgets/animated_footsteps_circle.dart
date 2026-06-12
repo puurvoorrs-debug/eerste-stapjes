@@ -3,17 +3,21 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 class AnimatedFootstepsCircle extends StatefulWidget {
   final double size;
+  final bool showCircle;
 
   const AnimatedFootstepsCircle({
     super.key,
     this.size = 120,
+    this.showCircle = true,
   });
 
   @override
-  State<AnimatedFootstepsCircle> createState() => _AnimatedFootstepsCircleState();
+  State<AnimatedFootstepsCircle> createState() =>
+      _AnimatedFootstepsCircleState();
 }
 
-class _AnimatedFootstepsCircleState extends State<AnimatedFootstepsCircle> with SingleTickerProviderStateMixin {
+class _AnimatedFootstepsCircleState extends State<AnimatedFootstepsCircle>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _leftFootAnimation;
   late Animation<double> _rightFootAnimation;
@@ -54,43 +58,50 @@ class _AnimatedFootstepsCircleState extends State<AnimatedFootstepsCircle> with 
     final theme = Theme.of(context);
     final footstepColor = theme.primaryColor;
 
+    final footstepsStack = Stack(
+      children: [
+        FadeTransition(
+          opacity: _leftFootAnimation,
+          child: SvgPicture.asset(
+            'assets/images/logo_left_foot.svg',
+            colorFilter: ColorFilter.mode(footstepColor, BlendMode.srcIn),
+          ),
+        ),
+        FadeTransition(
+          opacity: _rightFootAnimation,
+          child: SvgPicture.asset(
+            'assets/images/logo_right_foot.svg',
+            colorFilter: ColorFilter.mode(footstepColor, BlendMode.srcIn),
+          ),
+        ),
+      ],
+    );
+
+    if (!widget.showCircle) {
+      return SizedBox(
+        width: widget.size,
+        height: widget.size,
+        child: footstepsStack,
+      );
+    }
+
     return Container(
       width: widget.size,
       height: widget.size,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.brightness == Brightness.dark
+            ? theme.cardTheme.color
+            : Colors.white,
         shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
         border: Border.all(
-          color: theme.primaryColor.withOpacity(0.15),
+          color: theme.brightness == Brightness.dark
+              ? const Color(0xFFEFEBE9).withOpacity(0.15)
+              : theme.primaryColor.withOpacity(0.15),
           width: 2,
         ),
       ),
       padding: EdgeInsets.all(widget.size * 0.15),
-      child: Stack(
-        children: [
-          FadeTransition(
-            opacity: _leftFootAnimation,
-            child: SvgPicture.asset(
-              'assets/images/logo_left_foot.svg',
-              colorFilter: ColorFilter.mode(footstepColor, BlendMode.srcIn),
-            ),
-          ),
-          FadeTransition(
-            opacity: _rightFootAnimation,
-            child: SvgPicture.asset(
-              'assets/images/logo_right_foot.svg',
-              colorFilter: ColorFilter.mode(footstepColor, BlendMode.srcIn),
-            ),
-          ),
-        ],
-      ),
+      child: footstepsStack,
     );
   }
 }

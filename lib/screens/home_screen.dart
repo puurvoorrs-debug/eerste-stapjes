@@ -18,13 +18,16 @@ class HomeScreen extends StatelessWidget {
       return GestureDetector(
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => CalendarScreen(profile: profile)),
+          MaterialPageRoute(
+              builder: (context) => CalendarScreen(profile: profile)),
         ),
         child: Column(
           children: [
             CircleAvatar(
               radius: 45,
-              backgroundImage: profile.profileImage != null ? FileImage(profile.profileImage!) : null,
+              backgroundImage: profile.profileImage != null
+                  ? FileImage(profile.profileImage!)
+                  : null,
               child: profile.profileImage == null
                   ? const Icon(Icons.person, size: 50, color: Colors.white)
                   : null,
@@ -62,17 +65,20 @@ class HomeScreen extends StatelessWidget {
         ),
       );
     }
-    
+
     // Kleine knop om nog een profiel toe te voegen
     Widget buildAddAnotherProfileButton() {
-       return TextButton.icon(
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const CreateProfileScreen()),
-          ),
-          icon: const Icon(Icons.add_circle_outline, color: Colors.white, size: 20),
-          label: Text(context.tr('Nog een profiel aanmaken', 'Create another profile'), style: const TextStyle(color: Colors.white, fontSize: 16)),
-        );
+      return TextButton.icon(
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const CreateProfileScreen()),
+        ),
+        icon:
+            const Icon(Icons.add_circle_outline, color: Colors.white, size: 20),
+        label: Text(
+            context.tr('Nog een profiel aanmaken', 'Create another profile'),
+            style: const TextStyle(color: Colors.white, fontSize: 16)),
+      );
     }
 
     return Scaffold(
@@ -109,7 +115,6 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 50),
-              
               if (profileProvider.profiles.isEmpty)
                 buildAddFirstProfileButton()
               else
@@ -119,7 +124,9 @@ class HomeScreen extends StatelessWidget {
                       spacing: 30.0,
                       runSpacing: 30.0,
                       alignment: WrapAlignment.center,
-                      children: profileProvider.profiles.map((p) => buildProfileAvatar(p)).toList(),
+                      children: profileProvider.profiles
+                          .map((p) => buildProfileAvatar(p))
+                          .toList(),
                     ),
                     const SizedBox(height: 30),
                     buildAddAnotherProfileButton(),

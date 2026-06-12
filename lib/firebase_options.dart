@@ -23,10 +23,7 @@ class DefaultFirebaseOptions {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for ios - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return ios;
       case TargetPlatform.macOS:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for macos - '
@@ -56,7 +53,6 @@ class DefaultFirebaseOptions {
     projectId: 'eerste-stapjes-id',
     storageBucket: 'eerste-stapjes-id.firebasestorage.app',
   );
-
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyC4_5Jw1eehs0kljnn8oP3tdGA4yi7hJQA',
     appId: '1:933684372615:web:f905017ef4de0d25b78422',
@@ -66,4 +62,14 @@ class DefaultFirebaseOptions {
     storageBucket: 'eerste-stapjes-id.firebasestorage.app',
   );
 
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyCI8liegRTmggSn7_75oDYZpEXQzk5v95I',
+    appId: '1:933684372615:ios:fa3ee71f583ceb58b78422',
+    messagingSenderId: '933684372615',
+    projectId: 'eerste-stapjes-id',
+    storageBucket: 'eerste-stapjes-id.firebasestorage.app',
+    androidClientId: '933684372615-8cma57dm8863d68rn3lq13n8cbisjvg6.apps.googleusercontent.com',
+    iosClientId: '933684372615-gusqcem914dfvam7ooh40c7odeuce0aa.apps.googleusercontent.com',
+    iosBundleId: 'dev.mijneerstestapjes.app',
+  );
 }

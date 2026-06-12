@@ -2,7 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class NotificationModel {
   final String id;
-  final String type; // 'like', 'comment', 'reply', 'comment_like', 'new_post', 'follow_request', 'follow_request_sent', 'follow_approved', 'download_request', 'download_approved'
+  final String
+      type; // 'like', 'comment', 'reply', 'comment_like', 'new_post', 'follow_request', 'follow_request_sent', 'follow_approved', 'download_request', 'download_approved', 'nudge', 'nudge_available'
   final String profileId;
   final String? entryId;
   final String? commentId;

@@ -67,7 +67,7 @@ class MyApp extends StatelessWidget {
         builder: (context, themeProvider, localeProvider, child) {
           return MaterialApp(
             navigatorKey: navigatorKey,
-            title: localeProvider.isDutch ? 'Eerste stapjes' : 'First steps',
+            title: 'Eerste Stapjes',
             theme: lightTheme,
             darkTheme: darkTheme,
             themeMode: themeProvider.themeMode,
@@ -132,21 +132,28 @@ class AuthWrapper extends StatelessWidget {
 
               if (data != null) {
                 final firestoreLanguage = data['language'] as String?;
-                final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+                final localeProvider =
+                    Provider.of<LocaleProvider>(context, listen: false);
                 if (firestoreLanguage != null) {
                   if (localeProvider.locale.languageCode != firestoreLanguage) {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
-                      localeProvider.setLocale(Locale(firestoreLanguage), updateFirestore: false);
+                      localeProvider.setLocale(Locale(firestoreLanguage),
+                          updateFirestore: false);
                     });
                   }
                 } else {
-                  FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+                  FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(user.uid)
+                      .set({
                     'language': localeProvider.locale.languageCode,
-                  }, SetOptions(merge: true)).catchError((e) => debugPrint('Error saving initial language: $e'));
+                  }, SetOptions(merge: true)).catchError((e) =>
+                          debugPrint('Error saving initial language: $e'));
                 }
               }
 
-              final onboardingCompleted = data != null && data['onboardingCompleted'] == true;
+              final onboardingCompleted =
+                  data != null && data['onboardingCompleted'] == true;
               final hasProfiles = profilesQuery.docs.isNotEmpty;
 
               if (onboardingCompleted || hasProfiles) {

@@ -29,6 +29,13 @@
             {
               "client_id": "933684372615-10boe387nq7p4ebj5mvv2iknai09konj.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "933684372615-gusqcem914dfvam7ooh40c7odeuce0aa.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "dev.mijneerstestapjes.app"
+              }
             }
           ]
         }
@@ -42,6 +49,22 @@
         }
       },
       "oauth_client": [
+        {
+          "client_id": "933684372615-8cma57dm8863d68rn3lq13n8cbisjvg6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "dev.mijneerstestapjes.app",
+            "certificate_hash": "449bffa29a35705b030d13661dba36af3e6f5509"
+          }
+        },
+        {
+          "client_id": "933684372615-vn4t8nds2qkv5mbgqi47tgrq44q8o6vl.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "dev.mijneerstestapjes.app",
+            "certificate_hash": "5e6add74ffe573e69d194c9e9cc0c7416f395d84"
+          }
+        },
         {
           "client_id": "933684372615-10boe387nq7p4ebj5mvv2iknai09konj.apps.googleusercontent.com",
           "client_type": 3
@@ -58,6 +81,13 @@
             {
               "client_id": "933684372615-10boe387nq7p4ebj5mvv2iknai09konj.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "933684372615-gusqcem914dfvam7ooh40c7odeuce0aa.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "dev.mijneerstestapjes.app"
+              }
             }
           ]
         }

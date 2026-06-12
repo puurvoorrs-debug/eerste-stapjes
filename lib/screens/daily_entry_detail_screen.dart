@@ -5,6 +5,7 @@ import '../models/profile.dart';
 import '../models/daily_entry.dart';
 import 'photo_detail_screen.dart';
 import '../providers/locale_provider.dart';
+import '../widgets/sketchy_components.dart';
 
 class DailyEntryDetailScreen extends StatefulWidget {
   final String entryId;
@@ -37,9 +38,11 @@ class _DailyEntryDetailScreenState extends State<DailyEntryDetailScreen> {
       final currentUser = FirebaseAuth.instance.currentUser;
 
       // 1. Haal het profiel op
-      final profileDoc = await firestore.collection('profiles').doc(widget.profileId).get();
+      final profileDoc =
+          await firestore.collection('profiles').doc(widget.profileId).get();
       if (!profileDoc.exists) {
-        throw Exception(context.tr('Profiel niet gevonden.', 'Profile not found.'));
+        throw Exception(
+            context.tr('Profiel niet gevonden.', 'Profile not found.'));
       }
       final profile = Profile.fromMap(profileDoc.data()!, profileDoc.id);
       final profileData = profileDoc.data()!;
@@ -55,8 +58,9 @@ class _DailyEntryDetailScreenState extends State<DailyEntryDetailScreen> {
           setState(() {
             _isLoading = false;
             _isPermissionError = true;
-            _errorMessage =
-                context.tr('Je hebt geen toegang meer tot dit profiel. Mogelijk is je volgverzoek nog niet goedgekeurd of ben je ontvolgt.', 'You no longer have access to this profile. Your follow request may not be approved yet, or you have been unfollowed.');
+            _errorMessage = context.tr(
+                'Je hebt geen toegang meer tot dit profiel. Mogelijk is je volgverzoek nog niet goedgekeurd of ben je ontvolgt.',
+                'You no longer have access to this profile. Your follow request may not be approved yet, or you have been unfollowed.');
           });
         }
         return;
@@ -80,9 +84,10 @@ class _DailyEntryDetailScreenState extends State<DailyEntryDetailScreen> {
 
       // 4. Navigeer naar de PhotoDetailScreen
       if (mounted) {
+        debugPrint("[DailyEntryDetailScreen] Navigating to PhotoDetailScreen with entryId: ${widget.entryId}, parsed as: ${DateTime.parse(widget.entryId)}. Available entries keys: ${entries.keys.toList()}");
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => PhotoDetailScreen(
+          SketchyPageRoute(
+            page: PhotoDetailScreen(
               profile: profile,
               entries: entries,
               initialDate: DateTime.parse(widget.entryId),
@@ -96,7 +101,9 @@ class _DailyEntryDetailScreenState extends State<DailyEntryDetailScreen> {
           _isLoading = false;
           _isPermissionError = e.code == 'permission-denied';
           _errorMessage = _isPermissionError
-              ? context.tr('Je hebt geen toegang tot dit profiel. Mogelijk is je volgverzoek nog niet goedgekeurd.', 'You do not have access to this profile. Your follow request may not be approved yet.')
+              ? context.tr(
+                  'Je hebt geen toegang tot dit profiel. Mogelijk is je volgverzoek nog niet goedgekeurd.',
+                  'You do not have access to this profile. Your follow request may not be approved yet.')
               : '${context.tr('Fout bij openen van post', 'Error opening post')}: ${e.message}';
         });
       }
@@ -104,7 +111,8 @@ class _DailyEntryDetailScreenState extends State<DailyEntryDetailScreen> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = '${context.tr('Fout bij openen van post', 'Error opening post')}: $e';
+          _errorMessage =
+              '${context.tr('Fout bij openen van post', 'Error opening post')}: $e';
         });
       }
     }
@@ -125,14 +133,17 @@ class _DailyEntryDetailScreenState extends State<DailyEntryDetailScreen> {
                   children: [
                     const CircularProgressIndicator(),
                     const SizedBox(height: 20),
-                    Text(context.tr('Post wordt opgehaald...', 'Retrieving post...')),
+                    Text(context.tr(
+                        'Post wordt opgehaald...', 'Retrieving post...')),
                   ],
                 )
               : Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
-                      _isPermissionError ? Icons.lock_outline : Icons.error_outline,
+                      _isPermissionError
+                          ? Icons.lock_outline
+                          : Icons.error_outline,
                       size: 64,
                       color: _isPermissionError ? Colors.orange : Colors.red,
                     ),

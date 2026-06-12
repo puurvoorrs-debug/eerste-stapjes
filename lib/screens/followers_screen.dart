@@ -11,7 +11,8 @@ class FollowersScreen extends StatelessWidget {
 
   const FollowersScreen({super.key, required this.profile});
 
-  Future<List<UserModel>> _fetchFollowerDetails(List<String> followerIds) async {
+  Future<List<UserModel>> _fetchFollowerDetails(
+      List<String> followerIds) async {
     if (followerIds.isEmpty) return [];
     final userDocs = await FirebaseFirestore.instance
         .collection('users')
@@ -22,11 +23,13 @@ class FollowersScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+    final profileProvider =
+        Provider.of<ProfileProvider>(context, listen: false);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(context.tr('Volgers van ${profile.name}', 'Followers of ${profile.name}')),
+        title: Text(context.tr(
+            'Volgers van ${profile.name}', 'Followers of ${profile.name}')),
       ),
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
@@ -38,7 +41,9 @@ class FollowersScreen extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
           if (!snapshot.hasData || !snapshot.data!.exists) {
-            return Center(child: Text(context.tr('Kon profieldata niet laden.', 'Could not load profile data.')));
+            return Center(
+                child: Text(context.tr('Kon profieldata niet laden.',
+                    'Could not load profile data.')));
           }
 
           final data = snapshot.data!.data() as Map<String, dynamic>;
@@ -66,22 +71,22 @@ class FollowersScreen extends StatelessWidget {
                 ...pendingRequests.map((entry) {
                   final userId = entry.key;
                   final reqData = entry.value as Map<String, dynamic>;
-                  final name = reqData['name'] ?? context.tr('Onbekend', 'Unknown');
+                  final name =
+                      reqData['name'] ?? context.tr('Onbekend', 'Unknown');
                   final photoUrl = reqData['photoUrl'] ?? '';
 
                   return Card(
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
                       leading: CircleAvatar(
-                        backgroundImage: photoUrl.isNotEmpty
-                            ? NetworkImage(photoUrl)
-                            : null,
-                        child: photoUrl.isEmpty
-                            ? const Icon(Icons.person)
-                            : null,
+                        backgroundImage:
+                            photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+                        child:
+                            photoUrl.isEmpty ? const Icon(Icons.person) : null,
                       ),
                       title: Text(name),
-                      subtitle: Text(context.tr('Wil dit profiel volgen', 'Wants to follow this profile')),
+                      subtitle: Text(context.tr('Wil dit profiel volgen',
+                          'Wants to follow this profile')),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -123,8 +128,9 @@ class FollowersScreen extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 20.0),
                   child: Center(
-                    child: Text(
-                        context.tr('Dit profiel heeft nog geen bevestigde volgers.', 'This profile has no confirmed followers yet.')),
+                    child: Text(context.tr(
+                        'Dit profiel heeft nog geen bevestigde volgers.',
+                        'This profile has no confirmed followers yet.')),
                   ),
                 )
               else
@@ -138,7 +144,9 @@ class FollowersScreen extends StatelessWidget {
                     if (!followerSnapshot.hasData ||
                         followerSnapshot.data!.isEmpty) {
                       return Center(
-                          child: Text(context.tr('Geen volgersinformatie gevonden.', 'No follower information found.')));
+                          child: Text(context.tr(
+                              'Geen volgersinformatie gevonden.',
+                              'No follower information found.')));
                     }
                     return Column(
                       children: followerSnapshot.data!

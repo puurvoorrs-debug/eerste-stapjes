@@ -47,9 +47,11 @@ dev_dependencies:
 
 flutter_launcher_icons:
   android: true
-  ios: false
+  ios: true
   image_path: "assets/images/Statische_logo_voor_app_icon.png"
-  adaptive_icon_background: "#FFFFFF"
+  remove_alpha_ios: true
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "assets/images/Statische_logo_voor_app_icon_foreground.png"
 
 flutter:
   uses-material-design: true
@@ -58,6 +60,7 @@ flutter:
     - assets/
     - assets/images/
     - assets/fonts/
+    - assets/tips/
     - assets/images/logo_left_foot.svg
     - assets/images/logo_right_foot.svg
 

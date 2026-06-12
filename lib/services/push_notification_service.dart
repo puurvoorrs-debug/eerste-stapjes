@@ -58,8 +58,8 @@ class PushNotificationService {
               .doc(profileId)
               .get();
           if (doc.exists) {
-            final profile = Profile.fromMap(
-                doc.data() as Map<String, dynamic>, doc.id);
+            final profile =
+                Profile.fromMap(doc.data() as Map<String, dynamic>, doc.id);
             navigatorKey.currentState?.push(
               MaterialPageRoute(
                 builder: (_) => FollowersScreen(profile: profile),
@@ -121,8 +121,8 @@ class PushNotificationService {
       sound: true,
       provisional: false,
     );
-    developer
-        .log('Gebruiker heeft toestemming verleend: ${settings.authorizationStatus}');
+    developer.log(
+        'Gebruiker heeft toestemming verleend: ${settings.authorizationStatus}');
   }
 
   Future<void> _setupForegroundNotifications() async {
@@ -138,7 +138,8 @@ class PushNotificationService {
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(channel);
 
-    const InitializationSettings initializationSettings = InitializationSettings(
+    const InitializationSettings initializationSettings =
+        InitializationSettings(
       android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       iOS: DarwinInitializationSettings(),
     );
@@ -172,7 +173,8 @@ class PushNotificationService {
               icon: '@drawable/ic_notification',
             ),
           ),
-          payload: jsonEncode(message.data), // Stuur de data mee als JSON payload
+          payload:
+              jsonEncode(message.data), // Stuur de data mee als JSON payload
         );
       }
     });
