@@ -1,0 +1,44 @@
+workflows:
+  android-workflow:
+    name: Android Release Build
+    instance_type: mac_mini_m1
+    environment:
+      flutter: 3.27.3
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: 'master'
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          flutter packages pub get
+      - name: Build Android APK
+        script: |
+          flutter build apk --release
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
+
+  ios-simulator-workflow:
+    name: Flutter iOS Simulator
+    instance_type: mac_mini_m1
+    environment:
+      flutter: 3.27.3
+      xcode: 16.2
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: 'master'
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          flutter packages pub get
+      - name: Install Pods
+        script: |
+          find ios -name "Podfile" -execdir pod install \;
+      - name: Build iOS Simulator App
+        script: |
+          flutter build ios --simulator --no-codesign
+    artifacts:
+      - build/ios/iphonesimulator/Runner.app
