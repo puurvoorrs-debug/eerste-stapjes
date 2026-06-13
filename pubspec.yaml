@@ -63,6 +63,7 @@ flutter:
     - assets/tips/
     - assets/images/logo_left_foot.svg
     - assets/images/logo_right_foot.svg
+    - assets/google_logo.png
 
   fonts:
     - family: Pacifico

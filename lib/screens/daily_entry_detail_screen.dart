@@ -7,6 +7,12 @@ import 'photo_detail_screen.dart';
 import '../providers/locale_provider.dart';
 import '../widgets/sketchy_components.dart';
 
+DateTime parseDateOnly(String dateStr) {
+  final datePart = dateStr.contains('T') ? dateStr.split('T').first : dateStr;
+  final parts = datePart.split('-');
+  return DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+}
+
 class DailyEntryDetailScreen extends StatefulWidget {
   final String entryId;
   final String profileId;
@@ -76,7 +82,7 @@ class _DailyEntryDetailScreenState extends State<DailyEntryDetailScreen> {
       final entries = <DateTime, DailyEntry>{};
       for (var doc in entriesSnapshot.docs) {
         try {
-          entries[DateTime.parse(doc.id)] = DailyEntry.fromMap(doc.data());
+          entries[parseDateOnly(doc.id)] = DailyEntry.fromMap(doc.data());
         } catch (e) {
           // Negeer ongeldige datums
         }
@@ -84,13 +90,13 @@ class _DailyEntryDetailScreenState extends State<DailyEntryDetailScreen> {
 
       // 4. Navigeer naar de PhotoDetailScreen
       if (mounted) {
-        debugPrint("[DailyEntryDetailScreen] Navigating to PhotoDetailScreen with entryId: ${widget.entryId}, parsed as: ${DateTime.parse(widget.entryId)}. Available entries keys: ${entries.keys.toList()}");
+        debugPrint("[DailyEntryDetailScreen] Navigating to PhotoDetailScreen with entryId: ${widget.entryId}, parsed as: ${parseDateOnly(widget.entryId)}. Available entries keys: ${entries.keys.toList()}");
         Navigator.of(context).pushReplacement(
           SketchyPageRoute(
             page: PhotoDetailScreen(
               profile: profile,
               entries: entries,
-              initialDate: DateTime.parse(widget.entryId),
+              initialDate: parseDateOnly(widget.entryId),
             ),
           ),
         );

@@ -16,9 +16,18 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isSigningIn = false;
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    precacheImage(const AssetImage('assets/google_logo.png'), context);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final authService = AuthService();
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final containerColor = isDark ? (theme.cardTheme.color ?? const Color(0xFF1E1E1E)) : Colors.white;
+    final textColor = isDark ? const Color(0xFFEFEBE9) : const Color(0xFF2D2B2A);
 
     return Scaffold(
       body: SafeArea(
@@ -37,8 +46,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 48),
 
                 SketchyContainer(
-                  fillColor: Colors.white,
-                  borderColor: const Color(0xFF2D2B2A),
+                  fillColor: containerColor,
+                  borderColor: textColor,
                   borderRadius: 16.0,
                   padding: 24.0,
                   showShadow: false,
@@ -54,7 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: const Color(0xFF2D2B2A),
+                          color: textColor,
                         ),
                       ),
                       const SizedBox(height: 28),
@@ -68,9 +77,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         // Sketchy Google Login Button
                         SketchyButton(
                           label: context.tr('Doorgaan met Google', 'Continue with Google'),
-                          fillColor: Colors.white,
-                          borderColor: const Color(0xFF2D2B2A),
-                          textColor: const Color(0xFF2D2B2A),
+                          fillColor: containerColor,
+                          borderColor: textColor,
+                          textColor: textColor,
                           icon: Image.asset('assets/google_logo.png', height: 24.0),
                           onPressed: () async {
                             final scaffoldMessenger = ScaffoldMessenger.of(context);
@@ -113,7 +122,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     textAlign: TextAlign.center,
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 12,
-                      color: const Color(0xFF2D2B2A).withOpacity(0.6),
+                      color: textColor.withOpacity(0.6),
                       height: 1.5,
                     ),
                   ),

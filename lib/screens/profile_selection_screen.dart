@@ -53,27 +53,29 @@ class ProfileSelectionScreen extends StatelessWidget {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.tr('Profiel Volgen', 'Follow Profile')),
+      builder: (dialogContext) => AlertDialog(
+        title: Text(dialogContext.tr('Profiel Volgen', 'Follow Profile')),
         content: TextField(
           controller: codeController,
           decoration: InputDecoration(
             labelText:
-                context.tr('Voer de unieke code in', 'Enter the unique code'),
+                dialogContext.tr('Voer de unieke code in', 'Enter the unique code'),
           ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(context.tr('Annuleren', 'Cancel')),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(dialogContext.tr('Annuleren', 'Cancel')),
           ),
           ElevatedButton(
             onPressed: () async {
               try {
                 final result =
                     await profileProvider.followProfile(codeController.text);
+                if (dialogContext.mounted) {
+                  Navigator.pop(dialogContext);
+                }
                 if (context.mounted) {
-                  Navigator.pop(context);
                   String message;
                   switch (result) {
                     case 'request_sent':
@@ -106,8 +108,10 @@ class ProfileSelectionScreen extends StatelessWidget {
                   );
                 }
               } on IncompleteProfileException catch (e) {
+                if (dialogContext.mounted) {
+                  Navigator.pop(dialogContext);
+                }
                 if (context.mounted) {
-                  Navigator.pop(context);
                   final translatedMessage = e.message.contains('niet gevonden')
                       ? context.tr('Gebruikersprofiel niet gevonden.',
                           'User profile not found.')
@@ -117,8 +121,10 @@ class ProfileSelectionScreen extends StatelessWidget {
                   _showIncompleteProfileDialog(context, translatedMessage);
                 }
               } catch (e) {
+                if (dialogContext.mounted) {
+                  Navigator.pop(dialogContext);
+                }
                 if (context.mounted) {
-                  Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                         content: Text(context.tr(
@@ -128,7 +134,7 @@ class ProfileSelectionScreen extends StatelessWidget {
                 }
               }
             },
-            child: Text(context.tr('Volgen', 'Follow')),
+            child: Text(dialogContext.tr('Volgen', 'Follow')),
           ),
         ],
       ),
@@ -138,15 +144,15 @@ class ProfileSelectionScreen extends StatelessWidget {
   void _showUnfollowDialog(BuildContext context, Profile profile) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.tr('Profiel Ontvolgen', 'Unfollow Profile')),
-        content: Text(context.tr(
+      builder: (dialogContext) => AlertDialog(
+        title: Text(dialogContext.tr('Profiel Ontvolgen', 'Unfollow Profile')),
+        content: Text(dialogContext.tr(
             'Weet je zeker dat je ${profile.name} wilt ontvolgen? Je kunt de momenten van dit profiel dan niet meer bekijken.',
             'Are you sure you want to unfollow ${profile.name}? You will no longer be able to view the moments of this profile.')),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(context.tr('Annuleren', 'Cancel')),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(dialogContext.tr('Annuleren', 'Cancel')),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red[300]),
@@ -155,8 +161,10 @@ class ProfileSelectionScreen extends StatelessWidget {
                 final profileProvider =
                     Provider.of<ProfileProvider>(context, listen: false);
                 await profileProvider.unfollowProfile(profile.id!);
+                if (dialogContext.mounted) {
+                  Navigator.pop(dialogContext);
+                }
                 if (context.mounted) {
-                  Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                         content: Text(context.tr('Je bent gestopt met volgen.',
@@ -164,8 +172,10 @@ class ProfileSelectionScreen extends StatelessWidget {
                   );
                 }
               } catch (e) {
+                if (dialogContext.mounted) {
+                  Navigator.pop(dialogContext);
+                }
                 if (context.mounted) {
-                  Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                         content: Text(context.tr(
@@ -175,7 +185,7 @@ class ProfileSelectionScreen extends StatelessWidget {
                 }
               }
             },
-            child: Text(context.tr('Ontvolgen', 'Unfollow')),
+            child: Text(dialogContext.tr('Ontvolgen', 'Unfollow')),
           ),
         ],
       ),
@@ -186,14 +196,14 @@ class ProfileSelectionScreen extends StatelessWidget {
     final authService = AuthService();
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.tr('Uitloggen', 'Logout')),
-        content: Text(context.tr('Weet je zeker dat je wilt uitloggen?',
+      builder: (dialogContext) => AlertDialog(
+        title: Text(dialogContext.tr('Uitloggen', 'Logout')),
+        content: Text(dialogContext.tr('Weet je zeker dat je wilt uitloggen?',
             'Are you sure you want to log out?')),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(context.tr('Annuleren', 'Cancel')),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(dialogContext.tr('Annuleren', 'Cancel')),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -201,10 +211,12 @@ class ProfileSelectionScreen extends StatelessWidget {
               foregroundColor: Colors.white,
             ),
             onPressed: () async {
-              Navigator.pop(context);
+              if (dialogContext.mounted) {
+                Navigator.pop(dialogContext);
+              }
               await authService.signOut();
             },
-            child: Text(context.tr('Uitloggen', 'Logout')),
+            child: Text(dialogContext.tr('Uitloggen', 'Logout')),
           ),
         ],
       ),
