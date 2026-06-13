@@ -80,7 +80,17 @@ class _LoginScreenState extends State<LoginScreen> {
                           fillColor: containerColor,
                           borderColor: textColor,
                           textColor: textColor,
-                          icon: Image.asset('assets/google_logo.png', height: 24.0),
+                          icon: Image.asset(
+                            'assets/google_logo.png',
+                            height: 24.0,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Icon(
+                                Icons.login,
+                                size: 24.0,
+                                color: textColor,
+                              );
+                            },
+                          ),
                           onPressed: () async {
                             final scaffoldMessenger = ScaffoldMessenger.of(context);
                             setState(() => _isSigningIn = true);

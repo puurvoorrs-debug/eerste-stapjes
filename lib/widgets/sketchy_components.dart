@@ -261,25 +261,33 @@ class SketchyButton extends StatelessWidget {
               border: Border.all(color: resolvedBorderColor, width: 1.5),
             ),
             child: Center(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (icon != null) ...[
-                    IconTheme(
-                      data: IconThemeData(color: resolvedTextColor),
-                      child: icon!,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (icon != null) ...[
+                      IconTheme(
+                        data: IconThemeData(color: resolvedTextColor),
+                        child: icon!,
+                      ),
+                      const SizedBox(width: 12),
+                    ],
+                    Flexible(
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          color: resolvedTextColor,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    const SizedBox(width: 12),
                   ],
-                  Text(
-                    label,
-                    style: TextStyle(
-                      color: resolvedTextColor,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),
