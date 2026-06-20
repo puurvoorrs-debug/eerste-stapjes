@@ -407,7 +407,38 @@ class _CalendarScreenState extends State<CalendarScreen>
                   )
                 : null,
             actions: [
-              _buildAnimatedActions(profile, isOwner),
+              if (isOwner)
+                _buildAnimatedActions(profile, isOwner)
+              else
+                Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: Tooltip(
+                    message: context.tr('Favorieten', 'Favorites'),
+                    child: AnimatedStarIcon(
+                      isFilled: true,
+                      onTap: () async {
+                        final selectedDate = await Navigator.push<DateTime>(
+                          context,
+                          SketchyPageRoute(
+                              page:
+                                  FavoritesScreen(profile: profile, entries: _entries)),
+                        );
+                        if (selectedDate != null && mounted) {
+                          setState(() {
+                            _selectedDay = selectedDate;
+                            _focusedDay = selectedDate;
+                          });
+                          final dob = widget.profile.dateOfBirth;
+                          final firstDay = DateTime(dob.year, dob.month, dob.day);
+                          final pageIndex = _daysBetween(firstDay, selectedDate);
+                          if (_pageController.hasClients) {
+                            _pageController.jumpToPage(pageIndex);
+                          }
+                        }
+                      },
+                    ),
+                  ),
+                ),
             ],
           ),
           body: NotificationListener<OverscrollNotification>(

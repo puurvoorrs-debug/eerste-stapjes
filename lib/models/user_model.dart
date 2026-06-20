@@ -5,12 +5,14 @@ class UserModel {
   final String displayName;
   final String photoUrl;
   final String language;
+  final bool receiveNudges;
 
   UserModel({
     required this.uid,
     required this.displayName,
     required this.photoUrl,
     required this.language,
+    this.receiveNudges = true,
   });
 
   // Converteer een UserModel object naar een Map voor Firestore
@@ -20,6 +22,7 @@ class UserModel {
       'displayName': displayName,
       'photoUrl': photoUrl,
       'language': language,
+      'receiveNudges': receiveNudges,
     };
   }
 
@@ -31,6 +34,7 @@ class UserModel {
       displayName: data['displayName'] ?? '',
       photoUrl: data['photoUrl'] ?? '',
       language: data['language'] ?? 'nl',
+      receiveNudges: data['receiveNudges'] ?? true,
     );
   }
 }

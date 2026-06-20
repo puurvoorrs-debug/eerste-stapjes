@@ -26,7 +26,7 @@ class AuthService {
     } catch (e, s) {
       developer.log('Error during Google Sign-In',
           name: 'auth_service', error: e, stackTrace: s);
-      return null;
+      rethrow;
     }
   }
 

@@ -15,6 +15,72 @@ import 'calendar_screen.dart';
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
 
+  Future<void> _clearAllNotifications(BuildContext context, String userId) async {
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('notifications')
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(context.tr('Geen meldingen om te wissen.', 'No notifications to clear.')),
+            ),
+          );
+        }
+        return;
+      }
+
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(context.tr('Meldingen wissen', 'Clear notifications')),
+          content: Text(context.tr(
+              'Weet je zeker dat je alle meldingen wilt wissen?',
+              'Are you sure you want to clear all notifications?')),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(context.tr('Annuleren', 'Cancel')),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(context.tr('Wissen', 'Clear'), style: const TextStyle(color: Colors.red)),
+            ),
+          ],
+        ),
+      );
+
+      if (confirm != true) return;
+
+      final batch = FirebaseFirestore.instance.batch();
+      for (var doc in querySnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(context.tr('Alle meldingen gewist!', 'All notifications cleared!')),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error clearing notifications: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(context.tr('Fout bij het wissen van meldingen', 'Error clearing notifications')),
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _markAsRead(String notificationId) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -110,6 +176,13 @@ class NotificationsScreen extends StatelessWidget {
           fontWeight: FontWeight.bold,
           color: theme.colorScheme.onSurface,
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_sweep, color: Colors.grey),
+            tooltip: context.tr('Alle meldingen wissen', 'Clear all notifications'),
+            onPressed: () => _clearAllNotifications(context, user.uid),
+          ),
+        ],
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance

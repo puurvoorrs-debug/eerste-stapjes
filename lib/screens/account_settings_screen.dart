@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../models/user_model.dart';
 import '../providers/locale_provider.dart';
 import '../providers/theme_provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class AccountSettingsScreen extends StatefulWidget {
   const AccountSettingsScreen({super.key});
@@ -22,6 +23,8 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   File? _imageFile;
   bool _isLoading = false;
   UserModel? _currentUserModel;
+  bool _receiveNudges = true;
+  String _versionString = '';
 
   final User? _currentUser = FirebaseAuth.instance.currentUser;
 
@@ -29,6 +32,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   void initState() {
     super.initState();
     _loadUserData();
+    _loadVersionInfo();
   }
 
   Future<void> _loadUserData() async {
@@ -42,6 +46,20 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
       setState(() {
         _currentUserModel = UserModel.fromDocument(userDoc);
         _nameController.text = _currentUserModel!.displayName;
+        _receiveNudges = _currentUserModel!.receiveNudges;
+      });
+    }
+  }
+
+  Future<void> _loadVersionInfo() async {
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      setState(() {
+        _versionString = 'Versie ${packageInfo.version} (${packageInfo.buildNumber})';
+      });
+    } catch (e) {
+      setState(() {
+        _versionString = 'Versie 2.5.0 (1)';
       });
     }
   }
@@ -86,6 +104,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
           .update({
         'displayName': _nameController.text,
         'photoUrl': photoUrl,
+        'receiveNudges': _receiveNudges,
       });
 
       if (mounted) {
@@ -257,6 +276,27 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                         );
                       },
                     ),
+                    const SizedBox(height: 24),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(context.tr('Notificaties', 'Notifications'),
+                          style: theme.textTheme.titleMedium),
+                    ),
+                    const SizedBox(height: 8),
+                    SwitchListTile.adaptive(
+                      title: Text(context.tr('Ontvang \'por\' herinneringen', 'Receive poke reminders')),
+                      value: _receiveNudges,
+                      onChanged: (val) {
+                        setState(() {
+                          _receiveNudges = val;
+                        });
+                      },
+                      secondary: Icon(
+                        Icons.notifications_active,
+                        color: theme.primaryColor,
+                      ),
+                      contentPadding: EdgeInsets.zero,
+                    ),
                     const SizedBox(height: 40),
                     if (_isLoading)
                       const CircularProgressIndicator()
@@ -270,6 +310,17 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                             style: const TextStyle(
                                 fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
+                    if (_versionString.isNotEmpty) ...[
+                      const SizedBox(height: 32),
+                      Center(
+                        child: Text(
+                          _versionString,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurface.withOpacity(0.5),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

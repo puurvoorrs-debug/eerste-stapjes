@@ -857,32 +857,40 @@ exports.sendDailyNudgeRemindersToFollowers = functions.pubsub
           
           const messages = [];
           for (const followerId of followerIds) {
-            // Maak in-app notificatie document voor de volger
-            const notificationId = `nudge_avail_${profileId}_${dateString}`;
-            await createNotification(followerId, notificationId, {
-              type: "nudge_available",
-              profileId: profileId,
-              entryId: dateString,
-              senderId: profileData.ownerId,
-              senderName: profileName,
-            });
-
             const followerDoc = await db.collection("users").doc(followerId).get();
-            if (followerDoc.exists && followerDoc.data().fcmToken) {
-              const fcmToken = followerDoc.data().fcmToken;
-              const language = followerDoc.data().language || "nl";
-              messages.push({
-                notification: {
-                  title: getTranslation("nudge_available_title", language, { profileName }),
-                  body: getTranslation("nudge_available_body", language, { profileName }),
-                },
-                token: fcmToken,
-                data: {
-                  type: "nudge_available",
-                  profileId: profileId,
-                  entryId: dateString,
-                },
+            if (followerDoc.exists) {
+              const followerData = followerDoc.data();
+              if (followerData.receiveNudges === false) {
+                console.log(`Follower ${followerId} has disabled nudges. Skipping.`);
+                continue;
+              }
+
+              // Maak in-app notificatie document voor de volger
+              const notificationId = `nudge_avail_${profileId}_${dateString}`;
+              await createNotification(followerId, notificationId, {
+                type: "nudge_available",
+                profileId: profileId,
+                entryId: dateString,
+                senderId: profileData.ownerId,
+                senderName: profileName,
               });
+
+              if (followerData.fcmToken) {
+                const fcmToken = followerData.fcmToken;
+                const language = followerData.language || "nl";
+                messages.push({
+                  notification: {
+                    title: getTranslation("nudge_available_title", language, { profileName }),
+                    body: getTranslation("nudge_available_body", language, { profileName }),
+                  },
+                  token: fcmToken,
+                  data: {
+                    type: "nudge_available",
+                    profileId: profileId,
+                    entryId: dateString,
+                  },
+                });
+              }
             }
           }
 
